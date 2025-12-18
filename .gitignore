@@ -1,0 +1,20 @@
+# env
+.env
+
+# Go
+api/bin/
+api/*.exe
+api/*.out
+api/.idea/
+api/.vscode/
+
+# Node / Vite
+web/node_modules/
+web/dist/
+web/.vite/
+web/.idea/
+web/.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

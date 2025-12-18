@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16
+    container_name: testhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TESTHUB_DB_NAME}
+      POSTGRES_USER: ${TESTHUB_DB_USER}
+      POSTGRES_PASSWORD: ${TESTHUB_DB_PASSWORD}
+    ports:
+      - target: 5432
+        published: 5433
+        protocol: tcp
+        mode: host
+    volumes:
+      - testhub_pgdata:/var/lib/postgresql/data
+
+volumes:
+  testhub_pgdata:

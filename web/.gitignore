@@ -1,0 +1,47 @@
+# ======================
+# Environment
+# ======================
+.env
+.env.*
+!.env.example
+
+# ======================
+# Logs
+# ======================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ======================
+# Node / Frontend
+# ======================
+node_modules
+dist
+dist-ssr
+*.local
+.pnpm-store
+web/.pnpm-store
+
+# ======================
+# Go / Backend
+# ======================
+api/bin/
+api/*.exe
+api/*.out
+api/*.test
+
+# ======================
+# Editor / OS
+# ======================
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
