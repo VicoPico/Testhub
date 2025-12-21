@@ -1,8 +1,8 @@
 import { Outlet, NavLink, useParams } from 'react-router-dom';
-import { TopBarPlaceholder } from './TopBarPlaceholder';
-import { SidebarPlaceholder } from './SidebarPlaceholder';
+import { TopBar } from './TopBar';
+import { SidebarNav } from './SidebarNav';
 
-export function AppShellPlaceholder() {
+export function AppShell() {
 	const { projectId } = useParams();
 
 	return (
@@ -12,14 +12,14 @@ export function AppShellPlaceholder() {
 				gridTemplateRows: '56px 1fr',
 				height: '100vh',
 			}}>
-			<TopBarPlaceholder projectId={projectId ?? 'unknown'} />
+			<TopBar projectId={projectId ?? 'unknown'} />
 			<div
 				style={{
 					display: 'grid',
 					gridTemplateColumns: '240px 1fr',
 					minHeight: 0,
 				}}>
-				<SidebarPlaceholder projectId={projectId ?? 'unknown'} />
+				<SidebarNav projectId={projectId ?? 'unknown'} />
 				<main style={{ padding: 24, overflow: 'auto' }}>
 					<Outlet />
 					<div style={{ marginTop: 24, opacity: 0.6, fontSize: 12 }}>
