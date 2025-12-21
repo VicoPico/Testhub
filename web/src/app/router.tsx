@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { AppShellPlaceholder } from '../components/layout/AppShellPlaceholder';
+import { AppShell } from '../components/layout/AppShell';
 import { ProjectOverviewPage } from '../pages/ProjectOverviewPage';
 import { RunsPage } from '../pages/RunsPage';
 import { TestsPage } from '../pages/TestsPage';
@@ -14,13 +14,26 @@ export const router = createBrowserRouter([
 	},
 	{
 		path: '/projects/:projectId',
-		element: <AppShellPlaceholder />,
+		element: <AppShell />,
+		handle: { title: 'Overview' },
 		children: [
-			{ index: true, element: <ProjectOverviewPage /> },
-			{ path: 'runs', element: <RunsPage /> },
-			{ path: 'tests', element: <TestsPage /> },
-			{ path: 'analytics', element: <AnalyticsPage /> },
-			{ path: 'settings', element: <SettingsPage /> },
+			{
+				index: true,
+				element: <ProjectOverviewPage />,
+				handle: { title: 'Overview' },
+			},
+			{ path: 'runs', element: <RunsPage />, handle: { title: 'Runs' } },
+			{ path: 'tests', element: <TestsPage />, handle: { title: 'Tests' } },
+			{
+				path: 'analytics',
+				element: <AnalyticsPage />,
+				handle: { title: 'Analytics' },
+			},
+			{
+				path: 'settings',
+				element: <SettingsPage />,
+				handle: { title: 'Settings' },
+			},
 		],
 	},
 ]);
