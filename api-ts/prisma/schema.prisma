@@ -34,6 +34,7 @@ model Organization {
   name        String
   slug        String       @unique
   createdAt   DateTime     @default(now())
+  updatedAt   DateTime  @updatedAt
 
   memberships Membership[]
   projects    Project[]
@@ -48,6 +49,7 @@ model User {
   fullName  String?
   nickname  String?
   createdAt DateTime     @default(now())
+  updatedAt DateTime @updatedAt
 
   memberships Membership[]
   apiKeys     ApiKey[]
@@ -77,6 +79,7 @@ model Project {
   name      String
   slug      String
   createdAt DateTime   @default(now())
+  updatedAt   DateTime  @updatedAt
 
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -95,6 +98,7 @@ model ApiKey {
   prefix     String     @unique
   hash       String     // store only a secure hash; show plaintext only once on creation
   createdAt  DateTime   @default(now())
+  updatedAt  DateTime  @updatedAt
   lastUsedAt DateTime?
   expiresAt  DateTime?
   revokedAt  DateTime?
@@ -140,6 +144,7 @@ model TestCase {
 model TestRun {
   id          String    @id @default(cuid())
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   projectId   String
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -196,6 +201,7 @@ model TestResult {
   // Any extra structured payload from runners
   meta       Json?
 
+  @@unique([runId, testCaseId])
   @@index([runId, status])
   @@index([testCaseId])
 }
