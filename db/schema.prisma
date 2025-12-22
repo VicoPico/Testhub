@@ -1,0 +1,201 @@
+// db/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum TestStatus {
+  PASSED
+  FAILED
+  SKIPPED
+  ERROR
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  createdAt   DateTime     @default(now())
+
+  memberships Membership[]
+  projects    Project[]
+  apiKeys     ApiKey[]
+
+  @@index([createdAt])
+}
+
+model User {
+  id        String       @id @default(cuid())
+  email     String       @unique
+  fullName  String?
+  nickname  String?
+  createdAt DateTime     @default(now())
+
+  memberships Membership[]
+  apiKeys     ApiKey[]
+  createdRuns TestRun[]   @relation("RunsCreatedBy")
+
+  @@index([createdAt])
+}
+
+model Membership {
+  id        String          @id @default(cuid())
+  role      MembershipRole  @default(MEMBER)
+  createdAt DateTime        @default(now())
+
+  orgId     String
+  userId    String
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@index([orgId])
+}
+
+model Project {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String
+  createdAt DateTime   @default(now())
+
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  testCases TestCase[]
+  runs      TestRun[]
+
+  @@unique([orgId, slug])
+  @@index([orgId])
+  @@index([createdAt])
+}
+
+model ApiKey {
+  id         String     @id @default(cuid())
+  name       String
+  prefix     String     @unique
+  hash       String     // store only a secure hash; show plaintext only once on creation
+  createdAt  DateTime   @default(now())
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  // Optional: tie key to a user; org-level keys also allowed
+  userId     String?
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model TestCase {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Stable identifier from frameworks (JUnit classname+name, Pytest nodeid, etc.)
+  externalId String
+  name       String
+  filePath   String?
+  suiteName  String?
+
+  // Option A: simple tags
+  tags       String[] @default([])
+
+  results    TestResult[]
+
+  @@unique([projectId, externalId])
+  @@index([projectId, name])
+  @@index([projectId, suiteName])
+  // NOTE: Prisma does not express GIN indexes in schema.prisma reliably across versions.
+  // We'll add a manual SQL migration for a GIN index on tags.
+}
+
+model TestRun {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  status      RunStatus @default(QUEUED)
+  source      String?   // "ci", "local", "manual", etc.
+  commitSha   String?
+  branch      String?
+
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  durationMs  Int?
+
+  // Quick filters / metadata
+  env         Json?     // e.g. {"os":"linux","browser":"chrome"}
+  meta        Json?     // arbitrary metadata (build id, pipeline url, etc.)
+
+  // Denormalized totals for fast UI
+  totalCount  Int       @default(0)
+  passedCount Int       @default(0)
+  failedCount Int       @default(0)
+  skippedCount Int      @default(0)
+  errorCount  Int       @default(0)
+
+  createdByUserId String?
+  createdBy       User? @relation("RunsCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  results     TestResult[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([projectId, status])
+  @@index([projectId, branch])
+}
+
+model TestResult {
+  id         String     @id @default(cuid())
+  createdAt  DateTime   @default(now())
+
+  runId      String
+  run        TestRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  testCaseId String
+  testCase   TestCase   @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  status     TestStatus
+  durationMs Int?
+
+  message    String?
+  stacktrace String?
+
+  stdout     String?
+  stderr     String?
+
+  // Any extra structured payload from runners
+  meta       Json?
+
+  @@index([runId, status])
+  @@index([testCaseId])
+}
