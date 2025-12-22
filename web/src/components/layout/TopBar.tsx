@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { usePageTitle } from '@/lib/usePageTitle';
 
 export function TopBar(props: { projectId: string }) {
 	const pageTitle = usePageTitle();
+	const [mobileOpen, setMobileOpen] = React.useState(false);
 
 	return (
 		<header className='sticky top-0 z-40 h-14 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
@@ -15,7 +17,7 @@ export function TopBar(props: { projectId: string }) {
 				<div className='flex items-center gap-2 min-w-0'>
 					{/* Mobile sidebar */}
 					<div className='md:hidden'>
-						<Sheet>
+						<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
 							<SheetTrigger asChild>
 								<Button variant='outline' size='sm' className='h-9 px-3'>
 									Menu
@@ -25,7 +27,10 @@ export function TopBar(props: { projectId: string }) {
 								<div className='h-14 px-4 flex items-center border-b'>
 									<span className='font-semibold'>Testhub</span>
 								</div>
-								<SidebarNav projectId={props.projectId} />
+								<SidebarNav
+									projectId={props.projectId}
+									onNavigate={() => setMobileOpen(false)}
+								/>
 							</SheetContent>
 						</Sheet>
 					</div>

@@ -1,33 +1,28 @@
+import * as React from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 export function ThemeToggle() {
-	const { setTheme, theme } = useTheme();
+	const { theme, setTheme, systemTheme } = useTheme();
+
+	// Avoid hydration mismatch / initial undefined theme
+	const [mounted, setMounted] = React.useState(false);
+	React.useEffect(() => setMounted(true), []);
+
+	const resolvedTheme = theme === 'system' ? systemTheme : theme; // "light" | "dark" | undefined
+
+	const isDark = mounted ? resolvedTheme === 'dark' : false;
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button variant='outline' size='sm'>
-					Theme: {theme ?? 'system'}
-				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align='end'>
-				<DropdownMenuItem onClick={() => setTheme('light')}>
-					Light
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => setTheme('dark')}>
-					Dark
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => setTheme('system')}>
-					System
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+		<Button
+			variant='outline'
+			size='sm'
+			onClick={() => setTheme(isDark ? 'light' : 'dark')}
+			className='h-9 gap-2'
+			aria-label='Toggle theme'>
+			{isDark ? <Moon className='h-4 w-4' /> : <Sun className='h-4 w-4' />}
+			<span className='hidden sm:inline'>{isDark ? 'Dark' : 'Light'}</span>
+		</Button>
 	);
 }
