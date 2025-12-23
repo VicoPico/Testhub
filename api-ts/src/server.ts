@@ -1,33 +1,39 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import env from '@fastify/env';
-import prismaPlugin from './plugins/prisma';
+import sensible from '@fastify/sensible';
 
-const app = Fastify({
-	logger: true,
+import { envPlugin } from './plugins/env';
+import { corsPlugin } from './plugins/cors';
+import { prismaPlugin } from './plugins/prisma';
+import { healthRoutes } from './routes/health';
+import { runRoutes } from './routes/runs';
+
+export function buildApp() {
+	const app = Fastify({ logger: true });
+
+	app.register(envPlugin);
+	app.register(sensible);
+
+	// ✅ register cors AFTER envPlugin
+	app.register(corsPlugin);
+
+	app.register(prismaPlugin);
+
+	app.register(healthRoutes);
+	app.register(runRoutes);
+
+	return app;
+}
+
+async function main() {
+	const app = buildApp();
+
+	await app.ready();
+
+	const port = app.config.PORT;
+	await app.listen({ port, host: '0.0.0.0' });
+}
+
+main().catch((err) => {
+	console.error(err);
+	process.exit(1);
 });
-
-await app.register(env, {
-	schema: {
-		type: 'object',
-		required: ['DATABASE_URL'],
-		properties: {
-			DATABASE_URL: { type: 'string' },
-			PORT: { type: 'string', default: '8080' },
-			CORS_ORIGIN: { type: 'string', default: 'http://localhost:5173' },
-		},
-	},
-	dotenv: true,
-});
-
-await app.register(cors, {
-	origin: app.config.CORS_ORIGIN,
-	credentials: true,
-});
-
-await app.register(prismaPlugin);
-
-app.get('/health', async () => ({ ok: true }));
-
-const port = Number(app.config.PORT ?? '8080');
-await app.listen({ port, host: '0.0.0.0' });

@@ -6,6 +6,7 @@ import { RunsPage } from '../pages/RunsPage';
 import { TestsPage } from '../pages/TestsPage';
 import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { RunDetailsPage } from '../pages/RunDetailsPage';
 
 export const router = createBrowserRouter([
 	{
@@ -23,6 +24,11 @@ export const router = createBrowserRouter([
 				handle: { title: 'Overview' },
 			},
 			{ path: 'runs', element: <RunsPage />, handle: { title: 'Runs' } },
+			{
+				path: 'runs/:runId',
+				element: <RunDetailsPage />,
+				handle: { title: 'Run details' },
+			},
 			{ path: 'tests', element: <TestsPage />, handle: { title: 'Tests' } },
 			{
 				path: 'analytics',
