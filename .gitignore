@@ -1,6 +1,9 @@
 # env
 .env
 
+# Node
+node_modules/
+
 # Go
 api/bin/
 api/*.exe
