@@ -1,6 +1,6 @@
 # Testhub
 
-Testhub is a fast, developer-friendly platform to ingest, store, and explore automated test results (JUnit / Pytest), with a focus on performance, usability, and long-term maintainability
+Testhub is a fast, developer-friendly platform to ingest, store, and explore automated test results (JUnit / Pytest), with a focus on performance, usability, and long-term maintainability.
 
 It is designed as a realistic backend-heavy product that demonstrates:
 
@@ -9,9 +9,11 @@ It is designed as a realistic backend-heavy product that demonstrates:
 - clean REST APIs
 - a modern, scalable SPA UI
 
-### Goals
+---
 
-Primary goals
+## Goals
+
+### Primary goals
 
 - Fast by default
 - Predictable SQL queries
@@ -26,35 +28,37 @@ Primary goals
 - Stable UI primitives
 - Thoughtful extension points
 
-Non-goals (by design)
+### Non-goals (by design)
 
-- ❌ Microservices
-- ❌ Event buses / Kafka
-- ❌ Generic query builders
-- ❌ Complex permission models (v1)
-- ❌ “One giant dashboard page”
+- Microservices
+- Event buses / Kafka
+- Generic query builders
+- Complex permission models (v1)
+- “One giant dashboard page”
 
-### High-level architecture
+---
+
+## High-level architecture
 
 ```
 txt
-                +-------------------+
-                |   React SPA       |
-                |  (shadcn/ui)      |
-                +---------+---------+
-                          |
-                    REST API (v1)
-                          |
-                +---------+---------+
-                |   Go Backend      |
-                |  Explicit SQL     |
-                +---------+---------+
-                          |
-                    PostgreSQL
+            +-------------------+
+            |   React SPA       |
+            |  (Vite + shadcn)  |
+            +---------+---------+
+                      |
+                REST API (v1)
+                      |
+            +---------+---------+
+            | Node.js Backend   |
+            | Fastify + Prisma  |
+            +---------+---------+
+                      |
+                PostgreSQL
 
 ```
 
-### UI model
+## UI model
 
 Testhub is a Single Page Application (SPA) with:
 
@@ -63,34 +67,38 @@ Testhub is a Single Page Application (SPA) with:
 - fast in-place navigation
 - drawers instead of excessive page navigation
 
-### Core UI patterns
+---
+
+## Core UI patterns
 
 - Lists are pages
-- Details open in drawers
+- Details open in drawers or dedicated routes
 - Deep analysis has dedicated routes
 - Filters live in the URL
 - Charts are read-only and aggregated
 
-### Route map
+---
 
-```
+## Route map
 
-/                             → redirect to last project
-/projects/:projectId          → Project overview
-/projects/:projectId/runs     → Runs list
-/runs/:runId                  → Run details (tests, suites)
-/projects/:projectId/tests    → Tests explorer
-/tests/:testId                → Test history
-/projects/:projectId/analytics→ Analytics dashboards
-/projects/:projectId/settings → Project settings & ingestion docs
+```txt
+
+/                                   → redirect to last project
+/projects/:projectSlug              → Project overview
+/projects/:projectSlug/runs         → Runs list
+/projects/:projectSlug/runs/:id     → Run details (results, metadata)
+/projects/:projectSlug/tests        → Tests explorer
+/tests/:testId                      → Test history
+/projects/:projectSlug/analytics    → Analytics dashboards
+/projects/:projectSlug/settings     → Project settings & ingestion docs
 
 ```
 
 ### UI layout (wireframe)
 
-```
+```txt
 ┌───────────────────────────────────────────────────────────────┐
-│ TopBar: Project ▾ | Search | ⌘K | 🌙/☀ | User ▾               │
+│ TopBar: Project ▾ | Search | ⌘K | Theme | User ▾              │
 └───────────────────────────────────────────────────────────────┘
 ┌───────────────┬───────────────────────────────────────────────┐
 │ Sidebar       │ Main content (routed)                         │
@@ -98,24 +106,24 @@ Testhub is a Single Page Application (SPA) with:
 │  Overview     │  Page header                                  │
 │  Runs         │  Filters                                      │
 │  Tests        │  Tables / Charts                              │
-│  Analytics    │  Drawers for details                          │
+│  Analytics    │  Drawers / Details                            │
 │  Settings     │                                               │
 └───────────────┴───────────────────────────────────────────────┘
 
 ```
 
-### Key UI primitives
+## Key UI primitives
 
 These components are stable contracts and should be reused everywhere.
 
-Layout
+### Layout
 
 - AppShell
 - TopBar
 - SidebarNav
 - Breadcrumbs
 
-Page composition
+### Page composition
 
 - PageHeader
 - StatCards
@@ -126,11 +134,13 @@ Page composition
 - CodeBlock
 - BadgeStatus
 
-> Rule: New features should compose existing primitives before introducing new ones.
+> Rule: new features should compose existing primitives before introducing new ones.
 
-### Feature ownership
+---
 
-```
+## Feature ownership
+
+```txt
 
 features/
   projects/    → project selection & overview
@@ -146,26 +156,31 @@ Each feature owns:
 - its API hooks
 - its domain-specific UI components
 
-Shared UI lives in components/common.
+Shared UI lives in `components/common`.
 
-### Backend principles
+---
+
+## Backend principles
 
 - SQL is a first-class citizen
 - Queries are explicit and reviewable
-- Pagination, filtering, sorting are mandatory for list endpoints
-- Heavy text blobs (stack traces, stdout) are lazy-loaded
+- Pagination, filtering, and sorting are mandatory for list endpoints
+- Heavy text blobs (stack traces, stdout, stderr) are lazy-loaded
 - JSONB is used only for extensible metadata
 
-### Design tokens & theming
+---
+
+## Design tokens & theming
 
 Testhub uses design tokens (CSS variables) to guarantee:
-• consistent light/dark mode
-• easy UI evolution
-• zero hard-coded colors
+
+- consistent light and dark modes
+- easy UI evolution
+- zero hard-coded colors
 
 ### Base tokens
 
-```
+```txt
 
 --background
 --foreground
@@ -190,7 +205,7 @@ Testhub uses design tokens (CSS variables) to guarantee:
 
 ### Status tokens
 
-```
+```txt
 
 --status-pass
 --status-pass-foreground
@@ -205,7 +220,7 @@ Testhub uses design tokens (CSS variables) to guarantee:
 
 ### Chart tokens
 
-```
+```txt
 
 --chart-1
 --chart-2
@@ -215,15 +230,17 @@ Testhub uses design tokens (CSS variables) to guarantee:
 
 ```
 
-Token rules
+### Token rules
 
-- ❌ No hard-coded hex colors in components
-- ❌ No text-red-500 for statuses
-- ✅ All status colors use status tokens
-- ✅ All charts use --chart-\* tokens
-- ✅ Components use semantic classes (bg-card, text-muted-foreground)
+- No hard-coded hex colors in components
+- No utility colors for status (e.g. text-red-500)
+- All status colors use status tokens
+- All charts use chart tokens
+- Components use semantic classes (bg-card, text-muted-foreground)
 
-Performance rules (non-negotiable)
+---
+
+## Performance rules (non-negotiable)
 
 - All list endpoints are paginated
 - No endpoint returns unbounded result sets
@@ -231,28 +248,34 @@ Performance rules (non-negotiable)
 - Tables do not fetch stack traces by default
 - UI shows loading skeletons instead of blocking
 
-Extension points (future-ready)
+---
 
-- Multiple report formats (JUnit → Pytest → others)
+## Extension points (future-ready)
+
+- Multiple report formats (JUnit, Pytest, others)
 - Flaky test detection heuristics
 - Slow test regression tracking
 - Materialized views for heavy analytics
-- Test ownership & tagging
+- Test ownership and tagging
 - CI deep-linking
 
 These are planned, not implemented in v1.
 
-Why Testhub exists
+---
+
+## Why Testhub exists
 
 Testhub is intentionally scoped to:
 
 - feel like a real internal tool
 - highlight backend and data modeling skills
-- demonstrate thoughtful UI/UX engineering
+- thoughtful UI and UX engineering
 - remain fast and pleasant as it grows
 
 It favors clarity over cleverness and usability over abstraction.
 
-### Status
+---
 
-🚧 Early development / MVP phase
+## Status
+
+Early development / MVP phase

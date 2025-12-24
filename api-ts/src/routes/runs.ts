@@ -1,6 +1,7 @@
-// src/routes/runs.ts
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { requireProject } from '../lib/requireProject';
+import { requireRun } from '../lib/requireRun';
 
 const ProjectParams = z.object({
 	projectId: z.string().min(1), // slug or db id
@@ -46,43 +47,6 @@ const BatchResultsBody = z.object({
 	),
 });
 
-// Heuristic: Prisma cuid() looks like "cm..." and is fairly long.
-// We don't need this to be perfect; it’s just to decide which query to try first.
-function looksLikeId(value: string) {
-	return value.length >= 12 && /^[a-z0-9]+$/i.test(value);
-}
-
-/**
- * Resolve a project from either:
- * - slug (e.g. "demo")
- * - db id (e.g. "cmjieokwu0003sb5ie7xi3xn2")
- *
- * Throws a 404 via httpErrors if not found.
- */
-async function requireProject(app: any, projectIdOrSlug: string) {
-	let project: { id: string; name: string; slug: string } | null = null;
-
-	if (looksLikeId(projectIdOrSlug)) {
-		project = await app.prisma.project.findUnique({
-			where: { id: projectIdOrSlug },
-			select: { id: true, name: true, slug: true },
-		});
-	}
-
-	if (!project) {
-		project = await app.prisma.project.findFirst({
-			where: { slug: projectIdOrSlug },
-			select: { id: true, name: true, slug: true },
-		});
-	}
-
-	if (!project) {
-		throw app.httpErrors.notFound('Project not found');
-	}
-
-	return project;
-}
-
 export const runRoutes: FastifyPluginAsync = async (app) => {
 	// List runs
 	app.get('/projects/:projectId/runs', async (req) => {
@@ -91,7 +55,11 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const project = await requireProject(app, projectId);
 
-		const where: any = { projectId: project.id };
+		const where: {
+			projectId: string;
+			status?: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+		} = { projectId: project.id };
+
 		if (query.status) where.status = query.status;
 
 		const runs = await app.prisma.testRun.findMany({
@@ -131,9 +99,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const run = await app.prisma.testRun.findFirst({
 			where: { id: runId, projectId: project.id },
-			include: {
-				project: { select: { id: true, name: true, slug: true } },
-			},
+			include: { project: { select: { id: true, name: true, slug: true } } },
 		});
 
 		if (!run) throw app.httpErrors.notFound('Run not found');
@@ -146,12 +112,8 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const project = await requireProject(app, projectId);
 
-		// ensure run belongs to project
-		const run = await app.prisma.testRun.findFirst({
-			where: { id: runId, projectId: project.id },
-			select: { id: true },
-		});
-		if (!run) throw app.httpErrors.notFound('Run not found');
+		// Ensure run belongs to project
+		const run = await requireRun(app, project.id, runId);
 
 		const results = await app.prisma.testResult.findMany({
 			where: { runId },
@@ -207,11 +169,8 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const project = await requireProject(app, projectId);
 
-		const run = await app.prisma.testRun.findFirst({
-			where: { id: runId, projectId: project.id },
-			select: { id: true },
-		});
-		if (!run) throw app.httpErrors.notFound('Run not found');
+		// Ensure run belongs to project
+		await requireRun(app, project.id, runId);
 
 		const created = await app.prisma.$transaction(async (tx) => {
 			let passed = 0,
