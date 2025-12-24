@@ -1,5 +1,7 @@
+// src/routes/runs.ts
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { requireProject } from '../lib/requireProject';
 import { requireRun } from '../lib/requireRun';
 
@@ -24,8 +26,8 @@ const CreateRunBody = z.object({
 	source: z.string().optional(),
 	commitSha: z.string().optional(),
 	branch: z.string().optional(),
-	env: z.record(z.any()).optional(),
-	meta: z.record(z.any()).optional(),
+	env: z.record(z.string(), z.unknown()).optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
 });
 
 const BatchResultsBody = z.object({
@@ -42,7 +44,7 @@ const BatchResultsBody = z.object({
 			filePath: z.string().optional(),
 			suiteName: z.string().optional(),
 			tags: z.array(z.string()).optional(),
-			meta: z.record(z.any()).optional(),
+			meta: z.record(z.string(), z.unknown()).optional(),
 		})
 	),
 });
@@ -55,12 +57,10 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const project = await requireProject(app, projectId);
 
-		const where: {
-			projectId: string;
-			status?: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
-		} = { projectId: project.id };
-
-		if (query.status) where.status = query.status;
+		const where: Prisma.TestRunWhereInput = {
+			projectId: project.id,
+			...(query.status ? { status: query.status } : {}),
+		};
 
 		const runs = await app.prisma.testRun.findMany({
 			where,
@@ -91,18 +91,13 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		return { items: runs, nextCursor };
 	});
 
-	// Run details
+	// Run details (now fully driven by requireRun)
 	app.get('/projects/:projectId/runs/:runId', async (req) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 
 		const project = await requireProject(app, projectId);
+		const run = await requireRun(app, project.id, runId);
 
-		const run = await app.prisma.testRun.findFirst({
-			where: { id: runId, projectId: project.id },
-			include: { project: { select: { id: true, name: true, slug: true } } },
-		});
-
-		if (!run) throw app.httpErrors.notFound('Run not found');
 		return run;
 	});
 
@@ -112,8 +107,8 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const project = await requireProject(app, projectId);
 
-		// Ensure run belongs to project
-		const run = await requireRun(app, project.id, runId);
+		// Ensure run belongs to project (throws 404 if not)
+		await requireRun(app, project.id, runId);
 
 		const results = await app.prisma.testResult.findMany({
 			where: { runId },
@@ -152,8 +147,8 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 				source: body.source ?? 'manual',
 				commitSha: body.commitSha,
 				branch: body.branch,
-				env: body.env ?? undefined,
-				meta: body.meta ?? undefined,
+				env: body.env as Prisma.InputJsonValue | undefined,
+				meta: body.meta as Prisma.InputJsonValue | undefined,
 				status: 'QUEUED',
 			},
 			select: { id: true, createdAt: true, status: true, projectId: true },
@@ -169,7 +164,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		const project = await requireProject(app, projectId);
 
-		// Ensure run belongs to project
+		// Ensure run belongs to project (throws 404 if not)
 		await requireRun(app, project.id, runId);
 
 		const created = await app.prisma.$transaction(async (tx) => {
@@ -213,7 +208,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 						stacktrace: r.stacktrace,
 						stdout: r.stdout,
 						stderr: r.stderr,
-						meta: r.meta ?? undefined,
+						meta: (r.meta ?? undefined) as Prisma.InputJsonValue | undefined,
 					},
 				});
 
