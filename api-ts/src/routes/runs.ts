@@ -1,9 +1,9 @@
-// src/routes/runs.ts
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
-import { requireProject } from '../lib/requireProject';
 import { requireRun } from '../lib/requireRun';
+import { requireAuth } from '../lib/requireAuth';
+import { requireProjectForOrg } from '../lib/requireProjectForOrg';
 
 const ProjectParams = z.object({
 	projectId: z.string().min(1), // slug or db id
@@ -50,12 +50,18 @@ const BatchResultsBody = z.object({
 });
 
 export const runRoutes: FastifyPluginAsync = async (app) => {
+	// Auth guard for *all* routes in this plugin
+	app.addHook('preHandler', async (req) => {
+		requireAuth(req);
+	});
+
 	// List runs
 	app.get('/projects/:projectId/runs', async (req) => {
 		const { projectId } = ProjectParams.parse(req.params);
 		const query = ListRunsQuery.parse(req.query);
 
-		const project = await requireProject(app, projectId);
+		const orgId = req.ctx.auth.orgId;
+		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		const where: Prisma.TestRunWhereInput = {
 			projectId: project.id,
@@ -91,21 +97,22 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		return { items: runs, nextCursor };
 	});
 
-	// Run details (now fully driven by requireRun)
+	// Run details
 	app.get('/projects/:projectId/runs/:runId', async (req) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 
-		const project = await requireProject(app, projectId);
-		const run = await requireRun(app, project.id, runId);
+		const orgId = req.ctx.auth.orgId;
+		const project = await requireProjectForOrg(app, projectId, orgId);
 
-		return run;
+		return requireRun(app, project.id, runId);
 	});
 
 	// List results for a run
 	app.get('/projects/:projectId/runs/:runId/results', async (req) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 
-		const project = await requireProject(app, projectId);
+		const orgId = req.ctx.auth.orgId;
+		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		// Ensure run belongs to project (throws 404 if not)
 		await requireRun(app, project.id, runId);
@@ -139,7 +146,8 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		const { projectId } = ProjectParams.parse(req.params);
 		const body = CreateRunBody.parse(req.body);
 
-		const project = await requireProject(app, projectId);
+		const orgId = req.ctx.auth.orgId;
+		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		const created = await app.prisma.testRun.create({
 			data: {
@@ -162,9 +170,9 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 		const body = BatchResultsBody.parse(req.body);
 
-		const project = await requireProject(app, projectId);
+		const orgId = req.ctx.auth.orgId;
+		const project = await requireProjectForOrg(app, projectId, orgId);
 
-		// Ensure run belongs to project (throws 404 if not)
 		await requireRun(app, project.id, runId);
 
 		const created = await app.prisma.$transaction(async (tx) => {

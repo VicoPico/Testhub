@@ -1,21 +1,21 @@
+// src/lib/requireAuth.ts
 import type { FastifyRequest } from 'fastify';
+import type { AuthContext } from '../plugins/requestContext';
 
-export type AuthApiKey = {
-	kind: 'apiKey';
-	apiKeyId: string;
-	apiKeyPrefix: string;
-	orgId: string;
-	userId: string | null;
-};
+export type AuthenticatedAuth = Extract<AuthContext, { isAuthenticated: true }>;
 
-export type AuthAnonymous = { kind: 'anonymous' };
-
-export type Auth = AuthAnonymous | AuthApiKey;
-
-export function requireAuth(req: FastifyRequest): AuthApiKey {
-	const auth = req.ctx.auth as Auth | undefined;
-	if (!auth || auth.kind === 'anonymous') {
-		throw req.server.httpErrors.unauthorized('Missing or invalid API key');
+export function requireAuth(req: FastifyRequest): AuthenticatedAuth {
+	if (!req.ctx) {
+		throw req.server.httpErrors.internalServerError(
+			'Request context not initialized (did you register requestContextPlugin early enough?)'
+		);
 	}
+
+	const auth = req.ctx.auth;
+
+	if (!auth || auth.isAuthenticated !== true) {
+		throw req.server.httpErrors.unauthorized('Authentication required');
+	}
+
 	return auth;
 }
