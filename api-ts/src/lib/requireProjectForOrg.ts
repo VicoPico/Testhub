@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 export type RequiredProject = {
 	id: string;
@@ -8,32 +8,30 @@ export type RequiredProject = {
 };
 
 /**
- * Heuristic: Prisma cuid() looks like "cm..." and is fairly long.
- * This doesn't need to be perfect; it just decides which lookup to try first.
+ * Heuristic to distinguish database IDs from human-readable slugs.
+ *
+ * Prisma `cuid()` values are:
+ * - relatively long (≥ ~12 characters)
+ * - alphanumeric
+ *
+ * This is NOT a guarantee of correctness — it only helps decide
+ * which lookup to try first (id vs slug). Both paths are still
+ * validated against the database.
  */
 function looksLikeId(value: string) {
 	return value.length >= 12 && /^[a-z0-9]+$/i.test(value);
 }
 
 /**
- * Resolve a project from either:
- * - slug (e.g. "demo")
- * - db id (e.g. "cm...")
+ * Resolve a project by (slug OR id) scoped to orgId.
  *
- * Must belong to the authenticated org (req.ctx.org.id).
- * Throws 404 if not found.
+ * Returns 404 if not found in this org (including "exists in another org").
  */
-export async function requireProject(
+export async function requireProjectForOrg(
 	app: FastifyInstance,
-	req: FastifyRequest,
-	projectIdOrSlug: string
+	projectIdOrSlug: string,
+	orgId: string
 ): Promise<RequiredProject> {
-	const orgId = req.ctx?.org?.id;
-	if (!orgId) {
-		// Runs routes call requireAuth(req) before requireProject, so this is a safety net.
-		throw app.httpErrors.unauthorized('Authentication required');
-	}
-
 	let project: RequiredProject | null = null;
 
 	if (looksLikeId(projectIdOrSlug)) {
@@ -51,7 +49,6 @@ export async function requireProject(
 	}
 
 	if (!project) {
-		// 404 is intentional: don't leak cross-org existence
 		throw app.httpErrors.notFound('Project not found');
 	}
 

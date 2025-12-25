@@ -4,20 +4,28 @@ import sensible from '@fastify/sensible';
 import { envPlugin } from './plugins/env';
 import { corsPlugin } from './plugins/cors';
 import { prismaPlugin } from './plugins/prisma';
+import { requestContextPlugin } from './plugins/requestContext';
+import { authPlugin } from './plugins/auth';
+
 import { healthRoutes } from './routes/health';
 import { runRoutes } from './routes/runs';
 
 export function buildApp() {
 	const app = Fastify({ logger: true });
 
+	// Core / cross-cutting
 	app.register(envPlugin);
 	app.register(sensible);
 
-	// ✅ register cors AFTER envPlugin
+	// Needs envPlugin (CORS_ORIGIN)
 	app.register(corsPlugin);
 
+	// DB + request context + auth
 	app.register(prismaPlugin);
+	app.register(requestContextPlugin);
+	app.register(authPlugin);
 
+	// Routes
 	app.register(healthRoutes);
 	app.register(runRoutes);
 
