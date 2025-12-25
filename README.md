@@ -1,6 +1,6 @@
 # Testhub
 
-Testhub is a fast, developer-friendly platform to ingest, store, and explore automated test results (JUnit / Pytest), with a focus on performance, usability, and long-term maintainability.
+Testhub is a fast, developer-focused platform to ingest, store, and explore automated test results (JUnit, Pytest), with a strong emphasis on performance, clarity, and long-term maintainability.
 
 It is designed as a realistic backend-heavy product that demonstrates:
 
@@ -8,6 +8,7 @@ It is designed as a realistic backend-heavy product that demonstrates:
 - SQL-first performance thinking
 - clean REST APIs
 - a modern, scalable SPA UI
+- production-oriented authentication and access control
 
 ---
 
@@ -40,8 +41,7 @@ It is designed as a realistic backend-heavy product that demonstrates:
 
 ## High-level architecture
 
-```
-txt
+```txt
             +-------------------+
             |   React SPA       |
             |  (Vite + shadcn)  |
@@ -58,6 +58,19 @@ txt
 
 ```
 
+## Authentication & access model
+
+Testhub uses API-key–based authentication with strict organization scoping.
+
+- Every request is associated with a request context
+- API keys belong to an organization (and optionally a user)
+- All protected routes require authentication
+- Projects are always resolved within an organization
+- Cross-organization access is prevented by design
+- Non-owned resources return 404 to avoid information leakage
+
+This model keeps authorization logic explicit and auditable, without introducing unnecessary complexity in v1.
+
 ## UI model
 
 Testhub is a Single Page Application (SPA) with:
@@ -65,7 +78,7 @@ Testhub is a Single Page Application (SPA) with:
 - client-side routing
 - a persistent app shell (top bar + sidebar)
 - fast in-place navigation
-- drawers instead of excessive page navigation
+- drawers and dedicated routes instead of deep modal stacks
 
 ---
 
@@ -167,6 +180,7 @@ Shared UI lives in `components/common`.
 - Pagination, filtering, and sorting are mandatory for list endpoints
 - Heavy text blobs (stack traces, stdout, stderr) are lazy-loaded
 - JSONB is used only for extensible metadata
+- Authentication and org scoping are enforced at the route boundary
 
 ---
 
@@ -263,19 +277,9 @@ These are planned, not implemented in v1.
 
 ---
 
-## Why Testhub exists
-
-Testhub is intentionally scoped to:
-
-- feel like a real internal tool
-- highlight backend and data modeling skills
-- thoughtful UI and UX engineering
-- remain fast and pleasant as it grows
-
-It favors clarity over cleverness and usability over abstraction.
-
----
-
 ## Status
 
 Early development / MVP phase
+
+Backend foundation, authentication, and org scoping complete.
+Frontend integration begins in Step 9 (WIP).
