@@ -1,4 +1,3 @@
-// src/lib/requireAuth.ts
 import type { FastifyRequest } from 'fastify';
 import type { AuthContext } from '../plugins/requestContext';
 
