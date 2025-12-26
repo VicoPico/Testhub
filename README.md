@@ -78,6 +78,21 @@ locally in the browser through the Settings page.
 
 Keys are sent on each request using the `x-api-key` header.
 
+## Development roadmap
+
+Testhub is developed incrementally, with a strong focus on correctness,
+explicit contracts, and long-term maintainability.
+
+The project currently sits at the end of the **foundation phase**, with:
+
+- a stable backend core
+- authenticated, org-scoped APIs
+- a functional SPA for runs and results
+
+A high-level, non-binding roadmap is maintained in
+[`docs/roadmap.md`](docs/roadmap.md), describing the intended evolution
+from foundation → ingestion → analytics → production readiness.
+
 ## UI model
 
 Testhub is a Single Page Application (SPA) with:
