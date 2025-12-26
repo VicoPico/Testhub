@@ -13,12 +13,17 @@ import {
 } from '@/components/ui/select';
 
 import {
+	ApiError,
 	getRun,
 	listRunResults,
 	type RunDetails,
 	type RunResultItem,
 	type TestStatus,
 } from '@/lib/api';
+
+import { PageError } from '@/components/common/PageState';
+import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
+import { useAuth } from '@/lib/useAuth';
 
 function runStatusBadgeVariant(status: RunDetails['status']) {
 	switch (status) {
@@ -68,17 +73,26 @@ export function RunDetailsPage() {
 	const pid = projectId ?? '';
 	const rid = runId ?? '';
 
+	const { hasApiKey } = useAuth();
+
 	const [run, setRun] = React.useState<RunDetails | null>(null);
 	const [results, setResults] = React.useState<RunResultItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
+
 	const [error, setError] = React.useState<string | null>(null);
+	const [lastError, setLastError] = React.useState<unknown>(null);
 
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
 
-	async function refresh() {
+	const isUnauthorized =
+		lastError instanceof ApiError && lastError.status === 401;
+
+	const refresh = React.useCallback(async () => {
 		if (!pid || !rid) return;
+
 		setLoading(true);
 		setError(null);
+		setLastError(null);
 
 		try {
 			const [runData, resultsData] = await Promise.all([
@@ -89,16 +103,29 @@ export function RunDetailsPage() {
 			setRun(runData);
 			setResults(resultsData.items);
 		} catch (e) {
+			setLastError(e);
 			setError(e instanceof Error ? e.message : 'Unknown error');
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [pid, rid]);
 
 	React.useEffect(() => {
+		// route params missing -> do nothing
+		if (!pid || !rid) return;
+
+		// if no key, don't fetch and don't show skeleton forever
+		if (!hasApiKey) {
+			setRun(null);
+			setResults([]);
+			setLastError(null);
+			setError(null);
+			setLoading(false);
+			return;
+		}
+
 		void refresh();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [pid, rid]);
+	}, [pid, rid, hasApiKey, refresh]);
 
 	const filteredResults =
 		statusFilter === 'ALL'
@@ -125,6 +152,28 @@ export function RunDetailsPage() {
 		);
 	}
 
+	// Auth gating (no key or 401)
+	if (!hasApiKey || isUnauthorized) {
+		return (
+			<div className='space-y-4'>
+				<div className='flex items-center justify-between gap-3'>
+					<div>
+						<h1 className='text-xl font-semibold'>Run details</h1>
+						<p className='text-sm text-muted-foreground'>
+							This endpoint is protected.
+						</p>
+					</div>
+
+					<Button asChild variant='outline' size='sm'>
+						<Link to={`/projects/${pid}/runs`}>Back to runs</Link>
+					</Button>
+				</div>
+
+				<AuthRequiredCallout />
+			</div>
+		);
+	}
+
 	if (loading) {
 		return (
 			<div className='space-y-4'>
@@ -143,18 +192,18 @@ export function RunDetailsPage() {
 
 	if (error) {
 		return (
-			<div className='space-y-3'>
-				<h1 className='text-xl font-semibold'>Run details</h1>
-				<p className='text-sm text-destructive'>{error}</p>
-				<div className='flex gap-2'>
-					<Button asChild variant='outline' size='sm'>
-						<Link to={`/projects/${pid}/runs`}>Back to runs</Link>
-					</Button>
-					<Button variant='secondary' size='sm' onClick={() => void refresh()}>
-						Retry
-					</Button>
-				</div>
-			</div>
+			<PageError
+				title='Run details'
+				message={error}
+				onRetry={() => void refresh()}
+				extra={
+					<div className='flex gap-2'>
+						<Button asChild variant='outline' size='sm'>
+							<Link to={`/projects/${pid}/runs`}>Back to runs</Link>
+						</Button>
+					</div>
+				}
+			/>
 		);
 	}
 
@@ -162,7 +211,6 @@ export function RunDetailsPage() {
 
 	return (
 		<div className='space-y-6'>
-			{/* Header */}
 			<div className='flex items-start justify-between gap-4'>
 				<div className='min-w-0'>
 					<div className='flex flex-wrap items-center gap-2'>
@@ -192,7 +240,6 @@ export function RunDetailsPage() {
 				</div>
 			</div>
 
-			{/* Summary card */}
 			<div className='rounded-lg border bg-card p-4'>
 				<div className='grid gap-3 md:grid-cols-3'>
 					<div>
@@ -226,7 +273,6 @@ export function RunDetailsPage() {
 				</div>
 			</div>
 
-			{/* Results table */}
 			<div className='rounded-lg border bg-card p-4'>
 				<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
 					<div>
@@ -266,7 +312,7 @@ export function RunDetailsPage() {
 					</div>
 				) : (
 					<div className='overflow-hidden rounded-md border'>
-						<div className='grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/40'>
+						<div className='grid grid-cols-12 gap-2 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground'>
 							<div className='col-span-2'>Status</div>
 							<div className='col-span-6'>Test</div>
 							<div className='col-span-2'>Duration</div>
@@ -278,7 +324,7 @@ export function RunDetailsPage() {
 								const showMsg = r.status === 'FAILED' || r.status === 'ERROR';
 								return (
 									<div key={r.id} className='px-4 py-3'>
-										<div className='grid grid-cols-12 gap-2 items-start'>
+										<div className='grid grid-cols-12 items-start gap-2'>
 											<div className='col-span-2'>
 												<Badge variant={testStatusBadgeVariant(r.status)}>
 													{r.status}
@@ -286,10 +332,10 @@ export function RunDetailsPage() {
 											</div>
 
 											<div className='col-span-6 min-w-0'>
-												<div className='font-medium truncate'>
+												<div className='truncate font-medium'>
 													{r.testCase.name}
 												</div>
-												<div className='text-xs text-muted-foreground truncate'>
+												<div className='truncate text-xs text-muted-foreground'>
 													{r.testCase.suiteName ?? r.testCase.externalId}
 												</div>
 
