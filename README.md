@@ -64,12 +64,19 @@ Testhub uses API-key–based authentication with strict organization scoping.
 
 - Every request is associated with a request context
 - API keys belong to an organization (and optionally a user)
-- All protected routes require authentication
+- All protected routes require authentication via the `x-api-key` header
 - Projects are always resolved within an organization
 - Cross-organization access is prevented by design
 - Non-owned resources return 404 to avoid information leakage
 
 This model keeps authorization logic explicit and auditable, without introducing unnecessary complexity in v1.
+
+### Development workflow
+
+In development, API keys can be generated directly via Prisma and stored
+locally in the browser through the Settings page.
+
+Keys are sent on each request using the `x-api-key` header.
 
 ## UI model
 
