@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
+import { openapiContractPlugin } from './plugins/openapiContract';
 
 import { envPlugin } from './plugins/env';
 import { corsPlugin } from './plugins/cors';
@@ -16,6 +17,9 @@ export function buildApp() {
 	// Core / cross-cutting
 	app.register(envPlugin);
 	app.register(sensible);
+
+	// OpenAPI contract + /docs
+	app.register(openapiContractPlugin);
 
 	// Needs envPlugin (CORS_ORIGIN)
 	app.register(corsPlugin);

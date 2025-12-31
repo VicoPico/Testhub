@@ -142,7 +142,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 	});
 
 	// Create run
-	app.post('/projects/:projectId/runs', async (req) => {
+	app.post('/projects/:projectId/runs', async (req, reply) => {
 		const { projectId } = ProjectParams.parse(req.params);
 		const body = CreateRunBody.parse(req.body);
 
@@ -162,11 +162,11 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 			select: { id: true, createdAt: true, status: true, projectId: true },
 		});
 
-		return created;
+		return reply.code(201).send(created);
 	});
 
 	// Batch results (upserts TestCase + inserts TestResult)
-	app.post('/projects/:projectId/runs/:runId/results:batch', async (req) => {
+	app.post('/projects/:projectId/runs/:runId/results/batch', async (req) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 		const body = BatchResultsBody.parse(req.body);
 
