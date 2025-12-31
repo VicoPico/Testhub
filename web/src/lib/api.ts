@@ -1,4 +1,6 @@
+// web/src/lib/api.ts
 import { getApiKey } from './auth';
+import type { components, paths } from '@/gen/openapi';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
 
@@ -51,6 +53,35 @@ function pickApiKey(): string | undefined {
 	return stored ?? DEV_API_KEY;
 }
 
+/**
+ * Narrow OpenAPI response bodies from paths[...] definitions.
+ * Example: ResponseBody<'/health','get',200>
+ */
+type ResponseBody<
+	P extends keyof paths,
+	M extends keyof paths[P],
+	Code extends number
+> = paths[P][M] extends { responses: infer R }
+	? Code extends keyof R
+		? R[Code] extends { content: { 'application/json': infer B } }
+			? B
+			: never
+		: never
+	: never;
+
+/**
+ * Narrow OpenAPI request bodies from paths[...] definitions.
+ * Example: RequestBody<'/projects/{projectId}/runs','post'>
+ */
+type RequestBody<
+	P extends keyof paths,
+	M extends keyof paths[P]
+> = paths[P][M] extends {
+	requestBody: { content: { 'application/json': infer B } };
+}
+	? B
+	: never;
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 	const apiKey = pickApiKey();
 
@@ -93,85 +124,57 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 	return (await res.json()) as T;
 }
 
-export type RunStatus =
-	| 'QUEUED'
-	| 'RUNNING'
-	| 'COMPLETED'
-	| 'FAILED'
-	| 'CANCELED';
+// ---------- OpenAPI-derived domain types ----------
 
-export type TestStatus = 'PASSED' | 'FAILED' | 'SKIPPED' | 'ERROR';
+export type RunStatus = components['schemas']['RunStatus'];
+export type TestStatus = components['schemas']['TestStatus'];
 
-export type RunListItem = {
-	id: string;
-	createdAt: string;
-	status: RunStatus;
-	source?: string | null;
-	commitSha?: string | null;
-	branch?: string | null;
-	startedAt?: string | null;
-	finishedAt?: string | null;
-	durationMs?: number | null;
-	totalCount: number;
-	passedCount: number;
-	failedCount: number;
-	skippedCount: number;
-	errorCount: number;
-};
+export type RunListItem = components['schemas']['RunListItem'];
+export type RunListResponse = components['schemas']['RunListResponse'];
 
-export type RunDetails = {
-	id: string;
-	projectId: string;
-	status: RunStatus;
-	createdAt: string;
-	source?: string | null;
-	branch?: string | null;
-	commitSha?: string | null;
-	startedAt?: string | null;
-	finishedAt?: string | null;
-	durationMs?: number | null;
-	totalCount: number;
-	passedCount: number;
-	failedCount: number;
-	skippedCount: number;
-	errorCount: number;
-};
+export type RunDetails = components['schemas']['RunDetails'];
 
-export type RunResultItem = {
-	id: string;
-	status: TestStatus;
-	durationMs?: number | null;
-	message?: string | null;
-	createdAt: string;
-	testCase: {
-		id: string;
-		externalId: string;
-		name: string;
-		suiteName?: string | null;
-		tags: string[];
-	};
-};
+export type RunResultItem = components['schemas']['RunResultItem'];
+export type RunResultListResponse =
+	components['schemas']['RunResultListResponse'];
+
+export type CreateRunRequest = components['schemas']['CreateRunRequest'];
+export type CreateRunResponse = components['schemas']['CreateRunResponse'];
+
+// NOTE: your actual endpoint is /projects/{projectId}/runs/{runId}/results
+// and you renamed batch to /projects/{projectId}/runs/{runId}/results/batch
+export type BatchResultsRequest = components['schemas']['BatchResultsRequest'];
+export type BatchResultsResponse =
+	components['schemas']['BatchResultsResponse'];
+
+// ---------- Typed API functions ----------
+
+const PATH_RUNS = '/projects/{projectId}/runs' as const;
+const PATH_RUN = '/projects/{projectId}/runs/{runId}' as const;
+const PATH_RESULTS = '/projects/{projectId}/runs/{runId}/results' as const;
+const PATH_RESULTS_BATCH =
+	'/projects/{projectId}/runs/{runId}/results/batch' as const;
 
 export function listRuns(projectSlug: string) {
-	return apiFetch<{ items: RunListItem[]; nextCursor: string | null }>(
-		`/projects/${encodeURIComponent(projectSlug)}/runs`
-	);
+	type Res = ResponseBody<typeof PATH_RUNS, 'get', 200>;
+	return apiFetch<Res>(`/projects/${encodeURIComponent(projectSlug)}/runs`);
 }
 
 export function createRun(projectSlug: string) {
-	return apiFetch<{
-		id: string;
-		createdAt: string;
-		status: RunStatus;
-		projectId: string;
-	}>(`/projects/${encodeURIComponent(projectSlug)}/runs`, {
+	type Req = RequestBody<typeof PATH_RUNS, 'post'>;
+	type Res = ResponseBody<typeof PATH_RUNS, 'post', 201>;
+
+	const body: Req = { source: 'manual' };
+
+	return apiFetch<Res>(`/projects/${encodeURIComponent(projectSlug)}/runs`, {
 		method: 'POST',
-		body: JSON.stringify({ source: 'manual' }),
+		body: JSON.stringify(body),
 	});
 }
 
 export function getRun(projectSlug: string, runId: string) {
-	return apiFetch<RunDetails>(
+	type Res = ResponseBody<typeof PATH_RUN, 'get', 200>;
+	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
 			runId
 		)}`
@@ -179,9 +182,28 @@ export function getRun(projectSlug: string, runId: string) {
 }
 
 export function listRunResults(projectSlug: string, runId: string) {
-	return apiFetch<{ items: RunResultItem[] }>(
+	type Res = ResponseBody<typeof PATH_RESULTS, 'get', 200>;
+	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
 			runId
 		)}/results`
+	);
+}
+
+export function batchIngestResults(
+	projectSlug: string,
+	runId: string,
+	body: BatchResultsRequest
+) {
+	type Res = ResponseBody<typeof PATH_RESULTS_BATCH, 'post', 200>;
+
+	return apiFetch<Res>(
+		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
+			runId
+		)}/results/batch`,
+		{
+			method: 'POST',
+			body: JSON.stringify(body),
+		}
 	);
 }
