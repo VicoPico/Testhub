@@ -1,4 +1,3 @@
-// api-ts/src/lib/apiKey.ts
 import crypto from 'node:crypto';
 
 export type ParsedApiKey = { prefix: string; raw: string };
