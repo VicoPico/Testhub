@@ -10,6 +10,7 @@ export function useSidebarState(projectId: string) {
 
 	useEffect(() => {
 		const raw = localStorage.getItem(storageKey);
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setCollapsed(raw === '1');
 	}, [storageKey]);
 
