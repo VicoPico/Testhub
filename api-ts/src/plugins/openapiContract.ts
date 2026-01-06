@@ -1,10 +1,14 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import YAML from 'yaml';
+
+import { OpenAPIBackend } from 'openapi-backend';
 
 type OpenApiSpec = {
 	openapi: string;
@@ -13,15 +17,8 @@ type OpenApiSpec = {
 };
 
 function normalizeFastifyRoute(url: string) {
-	// Fastify treats "results:batch" as "results" + ":batch" (a param), but in our API it's a literal suffix.
-	// Preserve it as a literal so it matches OpenAPI.
-	const sentinel = '__LITERAL_COLON_BATCH__';
-	let u = url.replace('results:batch', `results${sentinel}`);
-
 	// /projects/:projectId/runs/:runId -> /projects/{projectId}/runs/{runId}
-	u = u.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
-
-	return u.replace(`results${sentinel}`, 'results:batch');
+	return url.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
 }
 
 const METHODS = new Set([
@@ -33,6 +30,13 @@ const METHODS = new Set([
 	'OPTIONS',
 	'HEAD',
 ]);
+
+function toPlainQuery(searchParams: URLSearchParams) {
+	// Keep it simple for v1: last-value-wins for duplicate keys.
+	const out: Record<string, string> = {};
+	for (const [k, v] of searchParams.entries()) out[k] = v;
+	return out;
+}
 
 export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 	// Load contracts/openapi.yaml (repo root)
@@ -51,6 +55,14 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 		},
 	});
 
+	// Build OpenAPI validator/router
+	const oas = new OpenAPIBackend({
+		definition: spec as any,
+		strict: false,
+		validate: true,
+	});
+	await oas.init();
+
 	// Collect actual registered routes reliably
 	const registered = new Set<string>();
 
@@ -61,8 +73,43 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 		for (const m of methods) {
 			const method = String(m).toUpperCase();
 			if (!METHODS.has(method)) continue;
-			if (method === 'HEAD') continue; // OpenAPI usually doesn't list HEAD explicitly
+			if (method === 'HEAD') continue; // we don't list HEAD in OpenAPI
 			registered.add(`${method} ${url}`);
+		}
+	});
+
+	// Request validation against OpenAPI (params/query/body)
+	// Note: we skip /docs + swagger assets.
+	app.addHook('preValidation', async (req) => {
+		// Skip swagger-ui + spec routes
+		if (req.url.startsWith('/docs')) return;
+
+		const method = req.method.toUpperCase();
+		if (!METHODS.has(method) || method === 'HEAD') return;
+
+		// Build a RequestObject for openapi-backend
+		const fullUrl = new URL(req.url, 'http://localhost'); // base is irrelevant
+		const requestObject = {
+			method,
+			path: fullUrl.pathname,
+			query: toPlainQuery(fullUrl.searchParams),
+			headers: req.headers as Record<string, any>,
+			body: req.body as any,
+		};
+
+		// If this request doesn’t match an OpenAPI operation, don’t validate it here.
+		// (Keeps this plugin from blocking any “internal” routes you add later.)
+		try {
+			oas.matchOperation(requestObject as any);
+		} catch {
+			return;
+		}
+
+		const validate = oas.validateRequest(requestObject as any);
+		if (validate.errors && validate.errors.length) {
+			throw app.httpErrors.badRequest('OpenAPI request validation failed', {
+				errors: validate.errors,
+			});
 		}
 	});
 
