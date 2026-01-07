@@ -9,6 +9,8 @@ import path from 'node:path';
 import YAML from 'yaml';
 
 import { OpenAPIBackend } from 'openapi-backend';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 
 type OpenApiSpec = {
 	openapi: string;
@@ -32,7 +34,7 @@ const METHODS = new Set([
 ]);
 
 function toPlainQuery(searchParams: URLSearchParams) {
-	// Keep it simple for v1: last-value-wins for duplicate keys.
+	// last-value-wins for duplicate keys (fine for v1)
 	const out: Record<string, string> = {};
 	for (const [k, v] of searchParams.entries()) out[k] = v;
 	return out;
@@ -55,12 +57,24 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 		},
 	});
 
-	// Build OpenAPI validator/router
+	// Build OpenAPI validator/router (OpenAPIBackend uses Ajv internally)
 	const oas = new OpenAPIBackend({
 		definition: spec as any,
 		strict: false,
 		validate: true,
-	});
+
+		// Make Ajv understand format: date-time, etc.
+		// (This is what stops the “unknown format "date-time" ignored” warnings.)
+		// Also keep strict:false to avoid noisy schema warnings during early development.
+		customizeAjv: (ajvInstance: Ajv) => {
+			addFormats(ajvInstance);
+			return ajvInstance;
+		},
+
+		// If you ever want stricter behavior later:
+		// ajvOpts: { allErrors: true, coerceTypes: true, strict: false },
+	} as any);
+
 	await oas.init();
 
 	// Collect actual registered routes reliably
@@ -68,8 +82,8 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 
 	app.addHook('onRoute', (route) => {
 		const url = normalizeFastifyRoute(route.url);
-
 		const methods = Array.isArray(route.method) ? route.method : [route.method];
+
 		for (const m of methods) {
 			const method = String(m).toUpperCase();
 			if (!METHODS.has(method)) continue;
@@ -81,14 +95,12 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 	// Request validation against OpenAPI (params/query/body)
 	// Note: we skip /docs + swagger assets.
 	app.addHook('preValidation', async (req) => {
-		// Skip swagger-ui + spec routes
 		if (req.url.startsWith('/docs')) return;
 
 		const method = req.method.toUpperCase();
 		if (!METHODS.has(method) || method === 'HEAD') return;
 
-		// Build a RequestObject for openapi-backend
-		const fullUrl = new URL(req.url, 'http://localhost'); // base is irrelevant
+		const fullUrl = new URL(req.url, 'http://localhost'); // base irrelevant
 		const requestObject = {
 			method,
 			path: fullUrl.pathname,
@@ -97,18 +109,14 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 			body: req.body as any,
 		};
 
-		// If this request doesn’t match an OpenAPI operation, don’t validate it here.
-		// (Keeps this plugin from blocking any “internal” routes you add later.)
-		try {
-			oas.matchOperation(requestObject as any);
-		} catch {
-			return;
-		}
+		// If no matching OpenAPI operation, don't block the request.
+		const match = oas.matchOperation(requestObject as any);
+		if (!match || !(match as any).operation) return;
 
-		const validate = oas.validateRequest(requestObject as any);
-		if (validate.errors && validate.errors.length) {
+		const result = oas.validateRequest(requestObject as any);
+		if (result?.errors?.length) {
 			throw app.httpErrors.badRequest('OpenAPI request validation failed', {
-				errors: validate.errors,
+				errors: result.errors,
 			});
 		}
 	});

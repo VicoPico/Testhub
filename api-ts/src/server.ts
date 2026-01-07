@@ -14,48 +14,31 @@ import { runRoutes } from './routes/runs';
 export function buildApp() {
 	const app = Fastify({ logger: true });
 
-	// --------------------------------------------------
 	// Core / cross-cutting
-	// --------------------------------------------------
 	app.register(envPlugin);
 	app.register(sensible);
 
-	// --------------------------------------------------
-	// OpenAPI contract + /docs + request validation
-	// (must be registered before routes)
-	// --------------------------------------------------
+	// OpenAPI contract + /docs
 	app.register(openapiContractPlugin);
 
-	// --------------------------------------------------
 	// Needs envPlugin (CORS_ORIGIN)
-	// --------------------------------------------------
 	app.register(corsPlugin);
 
-	// --------------------------------------------------
 	// DB + request context + auth
-	// --------------------------------------------------
 	app.register(prismaPlugin);
 	app.register(requestContextPlugin);
 	app.register(authPlugin);
 
-	// --------------------------------------------------
 	// Routes
-	// --------------------------------------------------
 	app.register(healthRoutes);
 	app.register(runRoutes);
 
-	// --------------------------------------------------
 	// Global error handler
-	// - surfaces OpenAPI validation errors in dev
-	// - keeps Fastify + sensible semantics
-	// --------------------------------------------------
 	app.setErrorHandler((err, req, reply) => {
-		req.log.error(err);
-
 		const statusCode =
-			typeof (err as any).statusCode === 'number'
-				? (err as any).statusCode
-				: 500;
+			(typeof (err as any).statusCode === 'number' &&
+				(err as any).statusCode) ||
+			500;
 
 		// OpenAPI / Ajv validation details may live in different places
 		const details =
@@ -69,7 +52,7 @@ export function buildApp() {
 			error:
 				(err as any).name ??
 				(statusCode >= 500 ? 'Internal Server Error' : 'Bad Request'),
-			message: err.message,
+			message: err instanceof Error ? err.message : String(err),
 			...(details ? { details } : {}),
 		});
 	});

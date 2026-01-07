@@ -1,20 +1,47 @@
 import type { FastifyRequest } from 'fastify';
-import type { AuthContext } from '../plugins/requestContext';
 
-export type AuthenticatedAuth = Extract<AuthContext, { isAuthenticated: true }>;
+/**
+ * Authenticated request context (API key–based)
+ */
+export type AuthenticatedAuth = {
+	isAuthenticated: true;
+	strategy: 'apiKey';
+	orgId: string;
+	apiKeyId: string;
+	userId?: string | null;
+};
 
-export function requireAuth(req: FastifyRequest): AuthenticatedAuth {
-	if (!req.ctx) {
-		throw req.server.httpErrors.internalServerError(
-			'Request context not initialized (did you register requestContextPlugin early enough?)'
-		);
-	}
+/**
+ * Unauthenticated request context
+ */
+export type UnauthenticatedAuth = {
+	isAuthenticated: false;
+	strategy: 'none';
+};
 
-	const auth = req.ctx.auth;
+/**
+ * Full auth context union
+ */
+export type AuthContext = AuthenticatedAuth | UnauthenticatedAuth;
 
-	if (!auth || auth.isAuthenticated !== true) {
+/**
+ * Runtime + type-level auth guard.
+ *
+ * After this call, `req.ctx.auth` is guaranteed to be authenticated.
+ */
+export function requireAuth(
+	req: FastifyRequest
+): asserts req is FastifyRequest & { ctx: { auth: AuthenticatedAuth } } {
+	if (!req.ctx?.auth || req.ctx.auth.isAuthenticated !== true) {
 		throw req.server.httpErrors.unauthorized('Authentication required');
 	}
+}
 
-	return auth;
+/**
+ * Convenience helper for routes that need auth data.
+ * Throws if unauthenticated.
+ */
+export function getAuth(req: FastifyRequest): AuthenticatedAuth {
+	requireAuth(req);
+	return req.ctx.auth;
 }

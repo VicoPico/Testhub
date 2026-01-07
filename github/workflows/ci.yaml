@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # --- OpenAPI contract quality gate ---
+      - name: Lint OpenAPI
+        run: npx -y @redocly/cli@latest lint contracts/openapi.yaml
+
+      - name: Bundle OpenAPI (sanity)
+        run: npx -y @redocly/cli@latest bundle contracts/openapi.yaml --output /tmp/testhub-openapi.bundle.yaml
+
+      # --- Web quality gates ---
+      - name: Web lint
+        run: pnpm -C web lint
+
+      - name: Web typecheck
+        run: pnpm -C web typecheck
+
+      - name: Web OpenAPI types are up-to-date
+        run: |
+          pnpm -C web gen:openapi
+          git diff --exit-code -- web/src/gen/openapi.ts
+
+      # --- API typecheck gate ---
+      - name: API typecheck
+        run: pnpm -C api-ts typecheck
