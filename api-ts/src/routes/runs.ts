@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { requireRun } from '../lib/requireRun';
-import { requireAuth } from '../lib/requireAuth';
+import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
 
 const ProjectParams = z.object({
@@ -60,7 +60,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		const { projectId } = ProjectParams.parse(req.params);
 		const query = ListRunsQuery.parse(req.query);
 
-		const orgId = req.ctx.auth.orgId;
+		const { orgId } = getAuth(req);
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		const where: Prisma.TestRunWhereInput = {
@@ -101,7 +101,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 	app.get('/projects/:projectId/runs/:runId', async (req) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 
-		const orgId = req.ctx.auth.orgId;
+		const { orgId } = getAuth(req);
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		return requireRun(app, project.id, runId);
@@ -111,7 +111,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 	app.get('/projects/:projectId/runs/:runId/results', async (req) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 
-		const orgId = req.ctx.auth.orgId;
+		const { orgId } = getAuth(req);
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		// Ensure run belongs to project (throws 404 if not)
@@ -146,7 +146,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		const { projectId } = ProjectParams.parse(req.params);
 		const body = CreateRunBody.parse(req.body);
 
-		const orgId = req.ctx.auth.orgId;
+		const { orgId } = getAuth(req);
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		const created = await app.prisma.testRun.create({
@@ -170,7 +170,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 		const { projectId, runId } = RunIdParams.parse(req.params);
 		const body = BatchResultsBody.parse(req.body);
 
-		const orgId = req.ctx.auth.orgId;
+		const { orgId } = getAuth(req);
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		await requireRun(app, project.id, runId);
