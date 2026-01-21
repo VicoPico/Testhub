@@ -24,7 +24,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 	app.addHook('preHandler', (req, _reply, done) => {
 		req.log.info(
 			{ url: req.url, method: req.method },
-			'projects preHandler requireAuth'
+			'projects preHandler requireAuth',
 		);
 
 		try {
@@ -32,7 +32,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 			const { orgId, userId } = getAuth(req);
 			req.log.info(
 				{ orgId, userId: userId ?? null, reqId: (req as any).id },
-				'projects requireAuth: success'
+				'projects requireAuth: success',
 			);
 			done();
 		} catch (err) {
@@ -101,7 +101,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 			) {
 				// Unique constraint violation (likely orgId+slug)
 				throw app.httpErrors.badRequest(
-					'Project slug is already in use in this organization'
+					'Project slug is already in use in this organization',
 				);
 			}
 			throw err;
@@ -157,7 +157,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 				err.code === 'P2002'
 			) {
 				throw app.httpErrors.badRequest(
-					'Project slug is already in use in this organization'
+					'Project slug is already in use in this organization',
 				);
 			}
 			throw err;
