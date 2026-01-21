@@ -1,6 +1,9 @@
 # env
 .env
 
+# Warp AI
+WARP.md
+
 # Node
 node_modules/
 

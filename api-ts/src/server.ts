@@ -10,6 +10,7 @@ import { authPlugin } from './plugins/auth';
 
 import { healthRoutes } from './routes/health';
 import { runRoutes } from './routes/runs';
+import { projectRoutes } from './routes/projects';
 
 export function buildApp() {
 	const app = Fastify({ logger: true });
@@ -18,7 +19,7 @@ export function buildApp() {
 	app.register(envPlugin);
 	app.register(sensible);
 
-	// OpenAPI contract + /docs
+	// OpenAPI contract + /docs + request validation
 	app.register(openapiContractPlugin);
 
 	// Needs envPlugin (CORS_ORIGIN)
@@ -32,27 +33,39 @@ export function buildApp() {
 	// Routes
 	app.register(healthRoutes);
 	app.register(runRoutes);
+	app.register(projectRoutes);
 
-	// Global error handler
-	app.setErrorHandler((err, req, reply) => {
+	// Central error handler so OpenAPI validation / httpErrors
+	// all return a consistent shape that matches ErrorResponse.
+	app.setErrorHandler((err, _req, reply) => {
+		const anyErr = err as any;
+
 		const statusCode =
-			(typeof (err as any).statusCode === 'number' &&
-				(err as any).statusCode) ||
-			500;
+			typeof anyErr.statusCode === 'number' && anyErr.statusCode >= 400
+				? anyErr.statusCode
+				: 500;
 
-		// OpenAPI / Ajv validation details may live in different places
 		const details =
-			(err as any).cause ??
-			(err as any).errors ??
-			(err as any).validation ??
-			undefined;
+			anyErr.cause ?? anyErr.errors ?? anyErr.validation ?? undefined;
+
+		const message =
+			typeof anyErr.message === 'string'
+				? anyErr.message
+				: statusCode >= 500
+				? 'Internal Server Error'
+				: 'Bad Request';
+
+		const errorName =
+			typeof anyErr.name === 'string'
+				? anyErr.name
+				: statusCode >= 500
+				? 'Internal Server Error'
+				: 'Bad Request';
 
 		reply.status(statusCode).send({
 			statusCode,
-			error:
-				(err as any).name ??
-				(statusCode >= 500 ? 'Internal Server Error' : 'Bad Request'),
-			message: err instanceof Error ? err.message : String(err),
+			error: errorName,
+			message,
 			...(details ? { details } : {}),
 		});
 	});

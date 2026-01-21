@@ -244,4 +244,22 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		return created;
 	});
+
+	// --- DELETE RUN ---
+	app.delete('/projects/:projectId/runs/:runId', async (req, reply) => {
+		const { projectId, runId } = RunIdParams.parse(req.params);
+
+		const { orgId } = getAuth(req);
+		const project = await requireProjectForOrg(app, projectId, orgId);
+
+		// Ensure run belongs to project (throws 404 if not)
+		const run = await requireRun(app, project.id, runId);
+
+		// Delete the run (cascade will remove test results)
+		await app.prisma.testRun.delete({
+			where: { id: run.id },
+		});
+
+		return reply.code(204).send();
+	});
 };
