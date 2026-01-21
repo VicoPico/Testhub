@@ -140,6 +140,10 @@ export type CreateProjectRequest =
 export type UpdateProjectRequest =
 	components['schemas']['UpdateProjectRequest'];
 
+// Query types
+export type ListRunsQuery =
+	paths['/projects/{projectId}/runs']['get']['parameters']['query'];
+
 // ---------- Typed API functions ----------
 
 // Path aliases (OpenAPI paths)
@@ -195,9 +199,17 @@ export function deleteProject(projectId: string) {
 
 // ----- Runs -----
 
-export function listRuns(projectSlug: string) {
+export function listRuns(projectSlug: string, query?: Partial<ListRunsQuery>) {
 	type Res = ResponseBody<PathRuns, 'get', '200'>;
-	return apiFetch<Res>(`/projects/${encodeURIComponent(projectSlug)}/runs`);
+	const params = new URLSearchParams();
+	if (query?.limit) params.set('limit', String(query.limit));
+	if (query?.cursor) params.set('cursor', query.cursor);
+	if (query?.status) params.set('status', query.status);
+	const queryString = params.toString();
+	const path = `/projects/${encodeURIComponent(projectSlug)}/runs${
+		queryString ? `?${queryString}` : ''
+	}`;
+	return apiFetch<Res>(path);
 }
 
 export function createRun(projectSlug: string) {
