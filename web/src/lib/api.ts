@@ -55,7 +55,7 @@ function pickApiKey(): string | undefined {
 type ResponseBody<
 	P extends keyof paths,
 	M extends keyof paths[P],
-	Code extends string
+	Code extends string,
 > = paths[P][M] extends { responses: infer R }
 	? Code extends keyof R
 		? R[Code] extends { content: { 'application/json': infer B } }
@@ -66,7 +66,7 @@ type ResponseBody<
 
 type RequestBody<
 	P extends keyof paths,
-	M extends keyof paths[P]
+	M extends keyof paths[P],
 > = paths[P][M] extends {
 	requestBody: { content: { 'application/json': infer B } };
 }
@@ -216,19 +216,19 @@ export function getRun(projectSlug: string, runId: string) {
 	type Res = ResponseBody<PathRun, 'get', '200'>;
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
-			runId
-		)}`
+			runId,
+		)}`,
 	);
 }
 
 export function deleteRun(projectSlug: string, runId: string) {
 	return apiFetch<void>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
-			runId
+			runId,
 		)}`,
 		{
 			method: 'DELETE',
-		}
+		},
 	);
 }
 
@@ -236,25 +236,25 @@ export function listRunResults(projectSlug: string, runId: string) {
 	type Res = ResponseBody<PathResults, 'get', '200'>;
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
-			runId
-		)}/results`
+			runId,
+		)}/results`,
 	);
 }
 
 export function batchIngestResults(
 	projectSlug: string,
 	runId: string,
-	body: BatchResultsRequest
+	body: BatchResultsRequest,
 ) {
 	type Res = ResponseBody<PathResultsBatch, 'post', '201'>;
 
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
-			runId
+			runId,
 		)}/results/batch`,
 		{
 			method: 'POST',
 			body: JSON.stringify(body),
-		}
+		},
 	);
 }

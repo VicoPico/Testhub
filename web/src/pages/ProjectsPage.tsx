@@ -1,6 +1,12 @@
 import * as React from 'react';
 import { useAuth } from '@/lib/useAuth';
-import { ApiError, type Project, listProjects, createProject, deleteProject } from '@/lib/api';
+import {
+	ApiError,
+	type Project,
+	listProjects,
+	createProject,
+	deleteProject,
+} from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageError, PageLoading } from '@/components/common/PageState';
@@ -109,12 +115,12 @@ export function ProjectsPage() {
 		// For now, we use a generic warning
 		const confirmed = window.confirm(
 			`Are you sure you want to delete "${project.name}"?\n\n` +
-			`⚠️ WARNING: This will permanently delete:\n` +
-			`• The project "${project.name}"\n` +
-			`• All test runs in this project\n` +
-			`• All test cases\n` +
-			`• All test results\n\n` +
-			`This action cannot be undone.`
+				`⚠️ WARNING: This will permanently delete:\n` +
+				`• The project "${project.name}"\n` +
+				`• All test runs in this project\n` +
+				`• All test cases\n` +
+				`• All test results\n\n` +
+				`This action cannot be undone.`,
 		);
 
 		if (!confirmed) return;
