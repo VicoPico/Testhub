@@ -1,5 +1,5 @@
 import { getApiKey } from './auth';
-import type { components, paths } from '@/gen/openapi';
+import type { components, operations, paths } from '@/gen/openapi';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
 const DEV_API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
@@ -50,12 +50,12 @@ function pickApiKey(): string | undefined {
 }
 
 /**
- * openapi-typescript uses string status keys: '200', '201', etc.
+ * openapi-typescript uses numeric status keys: 200, 201, etc.
  */
 type ResponseBody<
 	P extends keyof paths,
 	M extends keyof paths[P],
-	Code extends string,
+	Code extends number,
 > = paths[P][M] extends { responses: infer R }
 	? Code extends keyof R
 		? R[Code] extends { content: { 'application/json': infer B } }
@@ -141,8 +141,9 @@ export type UpdateProjectRequest =
 	components['schemas']['UpdateProjectRequest'];
 
 // Query types
-export type ListRunsQuery =
-	paths['/projects/{projectId}/runs']['get']['parameters']['query'];
+export type ListRunsQuery = NonNullable<
+	operations['listRuns']['parameters']['query']
+>;
 
 // ---------- Typed API functions ----------
 
@@ -158,13 +159,13 @@ type PathProject = '/projects/{projectId}';
 // ----- Projects -----
 
 export function listProjects() {
-	type Res = ResponseBody<PathProjects, 'get', '200'>;
+	type Res = ResponseBody<PathProjects, 'get', 200>;
 	return apiFetch<Res>('/projects');
 }
 
 export function createProject(body: CreateProjectRequest) {
 	type Req = RequestBody<PathProjects, 'post'>;
-	type Res = ResponseBody<PathProjects, 'post', '201'>;
+	type Res = ResponseBody<PathProjects, 'post', 201>;
 
 	const payload: Req = body;
 
@@ -175,13 +176,13 @@ export function createProject(body: CreateProjectRequest) {
 }
 
 export function getProject(projectId: string) {
-	type Res = ResponseBody<PathProject, 'get', '200'>;
+	type Res = ResponseBody<PathProject, 'get', 200>;
 	return apiFetch<Res>(`/projects/${encodeURIComponent(projectId)}`);
 }
 
 export function updateProject(projectId: string, body: UpdateProjectRequest) {
 	type Req = RequestBody<PathProject, 'patch'>;
-	type Res = ResponseBody<PathProject, 'patch', '200'>;
+	type Res = ResponseBody<PathProject, 'patch', 200>;
 
 	const payload: Req = body;
 
@@ -200,7 +201,7 @@ export function deleteProject(projectId: string) {
 // ----- Runs -----
 
 export function listRuns(projectSlug: string, query?: Partial<ListRunsQuery>) {
-	type Res = ResponseBody<PathRuns, 'get', '200'>;
+	type Res = ResponseBody<PathRuns, 'get', 200>;
 	const params = new URLSearchParams();
 	if (query?.limit) params.set('limit', String(query.limit));
 	if (query?.cursor) params.set('cursor', query.cursor);
@@ -214,7 +215,7 @@ export function listRuns(projectSlug: string, query?: Partial<ListRunsQuery>) {
 
 export function createRun(projectSlug: string) {
 	type Req = RequestBody<PathRuns, 'post'>;
-	type Res = ResponseBody<PathRuns, 'post', '201'>;
+	type Res = ResponseBody<PathRuns, 'post', 201>;
 
 	const body: Req = { source: 'manual' };
 
@@ -225,7 +226,7 @@ export function createRun(projectSlug: string) {
 }
 
 export function getRun(projectSlug: string, runId: string) {
-	type Res = ResponseBody<PathRun, 'get', '200'>;
+	type Res = ResponseBody<PathRun, 'get', 200>;
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
 			runId,
@@ -245,7 +246,7 @@ export function deleteRun(projectSlug: string, runId: string) {
 }
 
 export function listRunResults(projectSlug: string, runId: string) {
-	type Res = ResponseBody<PathResults, 'get', '200'>;
+	type Res = ResponseBody<PathResults, 'get', 200>;
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
 			runId,
@@ -258,7 +259,7 @@ export function batchIngestResults(
 	runId: string,
 	body: BatchResultsRequest,
 ) {
-	type Res = ResponseBody<PathResultsBatch, 'post', '201'>;
+	type Res = ResponseBody<PathResultsBatch, 'post', 201>;
 
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
