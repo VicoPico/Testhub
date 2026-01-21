@@ -21,6 +21,8 @@ security:
 tags:
   - name: Health
     description: Liveness and readiness endpoints
+  - name: Projects
+    description: Project management
   - name: Runs
     description: Run listing and run details
   - name: Results
@@ -63,6 +65,109 @@ paths:
                 $ref: '#/components/schemas/OkResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
+
+  # ---------- Projects ----------
+
+  /projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      summary: List projects
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Projects]
+      operationId: createProject
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /projects/{projectId}:
+    get:
+      tags: [Projects]
+      operationId: getProject
+      summary: Get project
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Projects]
+      operationId: updateProject
+      summary: Update project
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Projects]
+      operationId: deleteProject
+      summary: Delete a project
+      description: |
+        Deletes a project and all associated data (runs, test cases, results).
+        This operation cannot be undone.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '204':
+          description: No Content - Project successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------- Runs & Results (existing) ----------
 
   /projects/{projectId}/runs:
     get:
@@ -130,6 +235,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RunDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Runs]
+      operationId: deleteRun
+      summary: Delete a run
+      description: |
+        Deletes a run and all associated test results.
+        This operation cannot be undone.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '204':
+          description: No Content - Run successfully deleted
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -305,6 +428,58 @@ components:
         message:
           type: string
           example: Validation error
+
+    # ---------- Projects ----------
+
+    Project:
+      type: object
+      required: [id, name, slug, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    ProjectListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+      additionalProperties: false
+
+    CreateProjectRequest:
+      type: object
+      required: [name, slug]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          minLength: 1
+
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          minLength: 1
+
+    # ---------- Runs & Results ----------
 
     RunStatus:
       type: string

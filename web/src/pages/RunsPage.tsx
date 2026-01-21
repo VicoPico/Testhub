@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
 	listRuns,
 	createRun,
+	deleteRun,
 	ApiError,
 	type RunListItem,
 	type RunStatus,
@@ -45,7 +46,8 @@ export function RunsPage() {
 
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
-
+	// Delete state
+	const [deleting, setDeleting] = React.useState<string | null>(null);
 	// Minimal “query params” state (no heavy UI)
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
 
@@ -127,6 +129,44 @@ export function RunsPage() {
 		}
 	}
 
+	async function onDeleteRun(run: RunListItem) {
+		if (!hasApiKey) return;
+
+		const confirmed = window.confirm(
+			`Are you sure you want to delete this run?\n\n` +
+			`Run ID: ${run.id}\n` +
+			`Created: ${formatDate(run.createdAt)}\n` +
+			`Status: ${run.status}\n` +
+			`Total Tests: ${run.totalCount}\n\n` +
+			`⚠️ WARNING: This will permanently delete:\n` +
+			`• This test run\n` +
+			`• All ${run.totalCount} test results in this run\n\n` +
+			`This action cannot be undone.`
+		);
+
+		if (!confirmed) return;
+
+		setDeleting(run.id);
+		setError(null);
+		setLastError(null);
+
+		try {
+			await deleteRun(pid, run.id);
+			await refresh();
+		} catch (e) {
+			setLastError(e);
+			if (e instanceof ApiError) {
+				setError(`Failed to delete run: ${e.message}`);
+			} else if (e instanceof Error) {
+				setError(`Failed to delete run: ${e.message}`);
+			} else {
+				setError('Failed to delete run');
+			}
+		} finally {
+			setDeleting(null);
+		}
+	}
+
 	const showAuthCallout =
 		!hasApiKey || (lastError instanceof ApiError && lastError.status === 401);
 
@@ -187,7 +227,7 @@ export function RunsPage() {
 							<div className='col-span-2'>Status</div>
 							<div className='col-span-3'>Branch / Commit</div>
 							<div className='col-span-2'>Totals</div>
-							<div className='col-span-2 text-right'>Action</div>
+							<div className='col-span-2 text-right'>Actions</div>
 						</div>
 
 						<div className='divide-y'>
@@ -209,12 +249,20 @@ export function RunsPage() {
 										{r.passedCount}/{r.totalCount} passed
 									</div>
 
-									<div className='col-span-2 text-right'>
+									<div className='col-span-2 flex justify-end gap-2'>
 										<Link
 											className='text-sm underline underline-offset-4 hover:text-foreground'
 											to={`/projects/${pid}/runs/${r.id}`}>
-											View details →
+											View
 										</Link>
+										<Button
+											variant='outline'
+											size='sm'
+											onClick={() => onDeleteRun(r)}
+											disabled={deleting === r.id}
+											className='text-destructive hover:text-destructive'>
+											{deleting === r.id ? 'Deleting…' : 'Delete'}
+										</Button>
 									</div>
 								</div>
 							))}

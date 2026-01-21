@@ -8,6 +8,7 @@ import {
 	BarChart3,
 	Settings,
 	PanelLeft,
+	FolderKanban,
 } from 'lucide-react';
 import {
 	Tooltip,
@@ -17,89 +18,118 @@ import {
 } from '@/components/ui/tooltip';
 
 type SidebarNavProps = {
-	projectId: string;
+	// Optional: on /projects and /settings there is no active project
+	projectId?: string;
 	collapsed?: boolean;
 	onNavigate?: () => void;
 	onToggle?: () => void;
 };
 
 export function SidebarNav(props: SidebarNavProps) {
-	const base = `/projects/${props.projectId}`;
+	const { projectId, collapsed, onNavigate, onToggle } = props;
+	const base = projectId ? `/projects/${projectId}` : undefined;
 
 	return (
 		<div className='flex h-full flex-col px-3 py-4'>
 			{/* Header */}
 			<div className='mb-4 flex items-center justify-between px-2'>
-				{!props.collapsed && (
+				{!collapsed && (
 					<span className='text-sm font-semibold tracking-tight'>Testhub</span>
 				)}
 
-				{props.onToggle && (
+				{onToggle && (
 					<Button
 						variant='ghost'
 						size='icon'
-						onClick={props.onToggle}
-						aria-label={props.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+						onClick={onToggle}
+						aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						className='h-8 w-8'>
 						<PanelLeft
 							className={[
 								'h-4 w-4 transition-transform duration-600',
-								props.collapsed ? 'rotate-180' : 'rotate-0',
+								collapsed ? 'rotate-180' : 'rotate-0',
 							].join(' ')}
 						/>
 					</Button>
 				)}
 			</div>
 
-			<div className='mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground'>
-				Project
-			</div>
-
 			<TooltipProvider delayDuration={200}>
-				<nav className='flex flex-1 flex-col gap-2'>
-					<SidebarLink
-						to={base}
-						end
-						label='Overview'
-						collapsed={props.collapsed}
-						onNavigate={props.onNavigate}
-						icon={<LayoutDashboard className='h-4 w-4 shrink-0' />}
-					/>
+				{/* Main nav (takes remaining height) */}
+				<div className='flex-1 flex flex-col'>
+					{/* Workspace-level nav */}
+					<div className='mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground'>
+						Workspace
+					</div>
 
-					<SidebarLink
-						to={`${base}/runs`}
-						label='Runs'
-						collapsed={props.collapsed}
-						onNavigate={props.onNavigate}
-						icon={<PlayCircle className='h-4 w-4 shrink-0' />}
-					/>
+					<nav className='flex flex-col gap-2'>
+						<SidebarLink
+							to='/projects'
+							label='Projects'
+							collapsed={collapsed}
+							onNavigate={onNavigate}
+							icon={<FolderKanban className='h-4 w-4 shrink-0' />}
+						/>
+					</nav>
 
-					<SidebarLink
-						to={`${base}/tests`}
-						label='Tests'
-						collapsed={props.collapsed}
-						onNavigate={props.onNavigate}
-						icon={<FlaskConical className='h-4 w-4 shrink-0' />}
-					/>
+					{/* Project-scoped nav */}
+					{base && (
+						<>
+							<Separator className='my-3' />
 
-					<SidebarLink
-						to={`${base}/analytics`}
-						label='Analytics'
-						collapsed={props.collapsed}
-						onNavigate={props.onNavigate}
-						icon={<BarChart3 className='h-4 w-4 shrink-0' />}
-					/>
+							<div className='mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground'>
+								Project
+							</div>
 
-					<Separator className='my-3' />
+							<nav className='flex flex-1 flex-col gap-2'>
+								<SidebarLink
+									to={base}
+									end
+									label='Overview'
+									collapsed={collapsed}
+									onNavigate={onNavigate}
+									icon={<LayoutDashboard className='h-4 w-4 shrink-0' />}
+								/>
 
+								<SidebarLink
+									to={`${base}/runs`}
+									label='Runs'
+									collapsed={collapsed}
+									onNavigate={onNavigate}
+									icon={<PlayCircle className='h-4 w-4 shrink-0' />}
+								/>
+
+								<SidebarLink
+									to={`${base}/tests`}
+									label='Tests'
+									collapsed={collapsed}
+									onNavigate={onNavigate}
+									icon={<FlaskConical className='h-4 w-4 shrink-0' />}
+								/>
+
+								<SidebarLink
+									to={`${base}/analytics`}
+									label='Analytics'
+									collapsed={collapsed}
+									onNavigate={onNavigate}
+									icon={<BarChart3 className='h-4 w-4 shrink-0' />}
+								/>
+							</nav>
+						</>
+					)}
+				</div>
+
+				{/* Settings pinned to bottom */}
+				<div className='mt-3'>
+					<Separator className='mb-3' />
 					<SidebarLink
-						to={`${base}/settings`}
+						to='/settings'
 						label='Settings'
-						collapsed={props.collapsed}
-						onNavigate={props.onNavigate}
+						collapsed={collapsed}
+						onNavigate={onNavigate}
 						icon={<Settings className='h-4 w-4 shrink-0' />}
 					/>
-				</nav>
+				</div>
 			</TooltipProvider>
 		</div>
 	);

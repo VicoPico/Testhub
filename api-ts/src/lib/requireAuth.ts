@@ -1,9 +1,6 @@
 import type { FastifyRequest } from 'fastify';
 
-/**
- * Authenticated request context (API key–based)
- */
-export type AuthenticatedAuth = {
+export type AuthedContext = {
 	isAuthenticated: true;
 	strategy: 'apiKey';
 	orgId: string;
@@ -11,37 +8,52 @@ export type AuthenticatedAuth = {
 	userId?: string | null;
 };
 
-/**
- * Unauthenticated request context
- */
-export type UnauthenticatedAuth = {
+export type UnauthedContext = {
 	isAuthenticated: false;
 	strategy: 'none';
 };
 
-/**
- * Full auth context union
- */
-export type AuthContext = AuthenticatedAuth | UnauthenticatedAuth;
+export type AuthContext = AuthedContext | UnauthedContext;
 
-/**
- * Runtime + type-level auth guard.
- *
- * After this call, `req.ctx.auth` is guaranteed to be authenticated.
- */
-export function requireAuth(
-	req: FastifyRequest
-): asserts req is FastifyRequest & { ctx: { auth: AuthenticatedAuth } } {
-	if (!req.ctx?.auth || req.ctx.auth.isAuthenticated !== true) {
-		throw req.server.httpErrors.unauthorized('Authentication required');
-	}
+// Narrowing helper if you ever need it
+export function isAuthed(ctx: AuthContext): ctx is AuthedContext {
+	return ctx.isAuthenticated === true && ctx.strategy === 'apiKey';
 }
 
 /**
- * Convenience helper for routes that need auth data.
- * Throws if unauthenticated.
+ * Runtime auth guard.
+ * - Logs what it sees in req.ctx.auth
+ * - Throws 401 if not authenticated
  */
-export function getAuth(req: FastifyRequest): AuthenticatedAuth {
+export function requireAuth(
+	req: FastifyRequest
+): asserts req is FastifyRequest & { ctx: { auth: AuthedContext } } {
+	// Log what we see coming in
+	req.log.info({ ctx: (req as any).ctx }, 'requireAuth called – current ctx');
+
+	const ctx = (req as any).ctx?.auth as AuthContext | undefined;
+
+	if (!ctx || !ctx.isAuthenticated || ctx.strategy !== 'apiKey') {
+		req.log.warn(
+			{ ctx },
+			'requireAuth: unauthenticated or invalid strategy, throwing 401'
+		);
+		throw req.server.httpErrors.unauthorized('Authentication required');
+	}
+
+	// Success path
+	req.log.info(
+		{ orgId: ctx.orgId, apiKeyId: ctx.apiKeyId, userId: ctx.userId },
+		'requireAuth: success'
+	);
+}
+
+/**
+ * Convenience helper for handlers.
+ * Assumes requireAuth has already run in a hook.
+ */
+export function getAuth(req: FastifyRequest): AuthedContext {
 	requireAuth(req);
-	return req.ctx.auth;
+	// At this point the assert above holds
+	return (req as any).ctx.auth as AuthedContext;
 }

@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { AuthenticatedAuth } from './requireAuth';
-
+import type { AuthedContext as AuthenticatedAuth } from './requireAuth';
 export type RequiredProject = {
 	id: string;
 	slug: string;

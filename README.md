@@ -1,18 +1,138 @@
 # Testhub
 
-Testhub is a fast, developer-focused platform to ingest, store, and explore automated test results (JUnit, Pytest), with a strong emphasis on performance, clarity, and long-term maintainability.
+Testhub is a fast, developer-focused platform to ingest, store, and explore automated test results. Built with a strong emphasis on performance, clarity, and long-term maintainability, it provides a clean REST API and modern SPA interface for managing test runs and results.
 
-It is designed as a realistic backend-heavy product that demonstrates:
+## Features
 
-- explicit data modeling
-- SQL-first performance thinking
-- clean REST APIs
-- a modern, scalable SPA UI
-- production-oriented authentication and access control
+- Full CRUD operations for projects and test runs
+- Batch ingestion of test results with automatic test case management
+- Organization-scoped API key authentication
+- Real-time test result tracking and filtering
+- PostgreSQL-backed persistent storage with optimized queries
+- Type-safe API contracts with OpenAPI specification
+- Modern React SPA with shadcn/ui components
+
+## Stack
+
+**Backend:**
+
+- Node.js with Fastify
+- TypeScript
+- Prisma ORM
+- PostgreSQL 16
+- OpenAPI 3.0 contract
+
+**Frontend:**
+
+- React 19
+- Vite
+- TailwindCSS 4
+- shadcn/ui
+- React Router 7
 
 ---
 
-## Goals
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm (package manager)
+- Docker and Docker Compose (for PostgreSQL)
+
+### Setup
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd Testhub
+```
+
+2. Start the PostgreSQL database:
+
+```bash
+docker-compose up -d
+```
+
+3. Set up the backend:
+
+```bash
+cd api-ts
+pnpm install
+pnpm prisma:generate
+pnpm prisma:migrate
+pnpm seed  # Creates test organization and API key
+```
+
+4. Start the backend server:
+
+```bash
+pnpm dev  # Runs on http://localhost:8080
+```
+
+5. Set up the frontend (in a new terminal):
+
+```bash
+cd web
+pnpm install
+pnpm dev  # Runs on http://localhost:5173
+```
+
+6. Access the application at `http://localhost:5173`
+
+### Testing the API
+
+A comprehensive test script is included to verify all CRUD operations:
+
+```bash
+# Get your API key from the seed output or create one
+export API_KEY="your-api-key-here"
+
+# Run all tests
+./test-api.sh
+```
+
+The test script validates:
+
+- Health and readiness endpoints
+- Project CRUD operations (create, read, update, delete)
+- Run CRUD operations
+- Batch result ingestion
+- Error handling (401, 404, 400)
+
+---
+
+## API Endpoints
+
+### Health
+
+- `GET /health` - Server liveness check (no auth)
+- `GET /ready` - Database readiness check (no auth)
+
+### Projects
+
+- `GET /projects` - List all projects
+- `POST /projects` - Create a new project
+- `GET /projects/:projectId` - Get project details
+- `PATCH /projects/:projectId` - Update project
+- `DELETE /projects/:projectId` - Delete project
+
+### Runs
+
+- `GET /projects/:projectId/runs` - List runs with filtering and pagination
+- `POST /projects/:projectId/runs` - Create a new run
+- `GET /projects/:projectId/runs/:runId` - Get run details
+- `DELETE /projects/:projectId/runs/:runId` - Delete run
+
+### Results
+
+- `GET /projects/:projectId/runs/:runId/results` - List test results
+- `POST /projects/:projectId/runs/:runId/results/batch` - Batch ingest test results
+
+All protected endpoints require the `x-api-key` header.
+
+---
 
 ### Primary goals
 
@@ -39,7 +159,9 @@ It is designed as a realistic backend-heavy product that demonstrates:
 
 ---
 
-## High-level architecture
+## Architecture
+
+### High-level Overview
 
 ```txt
             +-------------------+
@@ -54,254 +176,311 @@ It is designed as a realistic backend-heavy product that demonstrates:
             | Fastify + Prisma  |
             +---------+---------+
                       |
-                PostgreSQL
-
+                PostgreSQL 16
 ```
 
-## Authentication & access model
+### Data Model
 
-Testhub uses API-key–based authentication with strict organization scoping.
+The application uses a well-structured relational schema:
 
-- Every request is associated with a request context
-- API keys belong to an organization (and optionally a user)
+- **Organization** - Top-level tenant for access control
+- **User** - Individual users with organization memberships
+- **Membership** - User-to-organization relationships with roles
+- **ApiKey** - Organization-scoped authentication keys
+- **Project** - Test projects within an organization
+- **TestCase** - Unique test definitions with stable external IDs
+- **TestRun** - Execution runs with status tracking and metadata
+- **TestResult** - Individual test outcomes linked to runs and test cases
+
+All entities use cascade deletes to maintain referential integrity.
+
+---
+
+## Design Principles
+
+### Backend Principles
+
+- SQL is a first-class citizen with explicit, reviewable queries
+- Pagination, filtering, and sorting are mandatory for list endpoints
+- Heavy text blobs (stack traces, stdout, stderr) are available but not loaded by default
+- JSONB is used only for extensible metadata fields
+- Authentication and organization scoping are enforced at the route boundary
+- No N+1 queries or ORM magic
+
+### Frontend Principles
+
+- Client-side routing with persistent app shell
+- Fast in-place navigation without full page reloads
+- Lists are pages, details open in drawers or dedicated routes
+- Filters live in the URL for shareability
+- Loading skeletons instead of blocking states
+- Type-safe API client generated from OpenAPI spec
+
+### Performance Rules
+
+- All list endpoints are paginated with cursor-based pagination
+- No endpoint returns unbounded result sets
+- Summary counts are precomputed and denormalized
+- UI components use semantic design tokens (no hard-coded colors)
+- Optimistic updates where appropriate
+
+---
+
+## Authentication & Authorization
+
+Testhub uses API-key-based authentication with strict organization scoping.
+
+### How It Works
+
+- Every request is associated with a request context containing organization and user information
+- API keys belong to an organization and optionally a specific user
 - All protected routes require authentication via the `x-api-key` header
-- Projects are always resolved within an organization
+- Projects and runs are always resolved within the authenticated organization
 - Cross-organization access is prevented by design
 - Non-owned resources return 404 to avoid information leakage
 
-This model keeps authorization logic explicit and auditable, without introducing unnecessary complexity in v1.
+### Development Workflow
 
-### Development workflow
+1. Run the seed script to create a test organization and API key:
 
-In development, API keys can be generated directly via Prisma and stored
-locally in the browser through the Settings page.
+   ```bash
+   cd api-ts
+   pnpm seed
+   ```
 
-Keys are sent on each request using the `x-api-key` header.
+2. Copy the generated API key from the output
 
-## Development roadmap
+3. Use the API key in requests:
 
-Testhub is developed incrementally, with a strong focus on correctness,
-explicit contracts, and long-term maintainability.
+   ```bash
+   curl -H "x-api-key: YOUR_API_KEY" http://localhost:8080/projects
+   ```
 
-The project currently sits at the end of the **foundation phase**, with:
+4. In the web UI, configure the API key in Settings to persist it locally
 
-- a stable backend core
-- authenticated, org-scoped APIs
-- a functional SPA for runs and results
-
-A high-level, non-binding roadmap is maintained in
-[`docs/roadmap.md`](docs/roadmap.md), describing the intended evolution
-from foundation → ingestion → analytics → production readiness.
-
-## UI model
-
-Testhub is a Single Page Application (SPA) with:
-
-- client-side routing
-- a persistent app shell (top bar + sidebar)
-- fast in-place navigation
-- drawers and dedicated routes instead of deep modal stacks
+This model keeps authorization logic explicit and auditable without introducing unnecessary complexity.
 
 ---
 
-## Core UI patterns
-
-- Lists are pages
-- Details open in drawers or dedicated routes
-- Deep analysis has dedicated routes
-- Filters live in the URL
-- Charts are read-only and aggregated
-
----
-
-## Route map
+## Project Structure
 
 ```txt
-
-/                                   → redirect to last project
-/projects/:projectSlug              → Project overview
-/projects/:projectSlug/runs         → Runs list
-/projects/:projectSlug/runs/:id     → Run details (results, metadata)
-/projects/:projectSlug/tests        → Tests explorer
-/tests/:testId                      → Test history
-/projects/:projectSlug/analytics    → Analytics dashboards
-/projects/:projectSlug/settings     → Project settings & ingestion docs
-
+Testhub/
+├── api-ts/                 # Backend API
+│   ├── src/
+│   │   ├── server.ts       # Main server entry point
+│   │   ├── lib/            # Auth and request helpers
+│   │   ├── plugins/        # Fastify plugins (auth, cors, prisma)
+│   │   ├── routes/         # API route handlers
+│   │   └── schemas/        # Validation schemas
+│   ├── prisma/
+│   │   ├── schema.prisma   # Database schema
+│   │   ├── seed.ts         # Database seeding
+│   │   └── migrations/     # Schema migrations
+│   └── package.json
+│
+├── web/                    # Frontend SPA
+│   ├── src/
+│   │   ├── app/            # Router configuration
+│   │   ├── components/     # React components
+│   │   │   ├── common/     # Shared components
+│   │   │   ├── layout/     # Layout components (AppShell, TopBar, Sidebar)
+│   │   │   ├── theme/      # Theme provider and toggle
+│   │   │   └── ui/         # shadcn/ui primitives
+│   │   ├── gen/            # Generated OpenAPI types
+│   │   ├── lib/            # Utilities and hooks
+│   │   ├── pages/          # Route page components
+│   │   └── styles/         # Global styles
+│   └── package.json
+│
+├── contracts/
+│   └── openapi.yaml        # OpenAPI 3.0 specification
+│
+├── docs/
+│   ├── architecture.md     # Architecture documentation
+│   └── roadmap.md          # Development roadmap
+│
+├── docker-compose.yml      # PostgreSQL service
+├── test-api.sh             # API testing script
+└── README.md
 ```
 
-### UI layout (wireframe)
+---
+
+## Development Roadmap
+
+The project is currently in active development with a working MVP that includes:
+
+- Complete CRUD operations for projects and runs
+- Batch test result ingestion with automatic test case management
+- Organization-scoped authentication and authorization
+- Functional SPA with project listing, run management, and result viewing
+- Type-safe API client generated from OpenAPI specification
+
+### Planned Features
+
+- Advanced test filtering and search
+- Test history and trend analysis
+- Flaky test detection
+- Performance regression tracking
+- Real-time run status updates via WebSocket
+- CI/CD integration examples
+- Multi-format ingestion support (JUnit, Pytest, etc.)
+- Materialized views for analytics
+
+See [docs/roadmap.md](docs/roadmap.md) for detailed planning.
+
+---
+
+## UI Architecture
+
+### UI Model
+
+Testhub is a Single Page Application (SPA) featuring:
+
+- Client-side routing with React Router
+- Persistent app shell with top bar and sidebar navigation
+- Fast in-place navigation without full page reloads
+- Drawers for quick details and dedicated routes for deep analysis
+- URL-based filtering for shareable views
+
+### Route Map
+
+```txt
+/                                   → Redirect to last visited project
+/projects/:projectSlug              → Project overview
+/projects/:projectSlug/runs         → Runs list with filtering
+/projects/:projectSlug/runs/:id     → Run details (results, metadata)
+/projects/:projectSlug/tests        → Tests explorer
+/tests/:testId                      → Test history and trends
+/projects/:projectSlug/analytics    → Analytics dashboards
+/projects/:projectSlug/settings     → Project settings
+/settings                           → Global settings (API key management)
+```
+
+### UI Layout
 
 ```txt
 ┌───────────────────────────────────────────────────────────────┐
-│ TopBar: Project ▾ | Search | ⌘K | Theme | User ▾              │
+│ TopBar: Project selector | Search | Theme toggle | User menu  │
 └───────────────────────────────────────────────────────────────┘
 ┌───────────────┬───────────────────────────────────────────────┐
 │ Sidebar       │ Main content (routed)                         │
 │               │                                               │
 │  Overview     │  Page header                                  │
-│  Runs         │  Filters                                      │
+│  Runs         │  Filters & controls                           │
 │  Tests        │  Tables / Charts                              │
-│  Analytics    │  Drawers / Details                            │
+│  Analytics    │  Drawers for details                          │
 │  Settings     │                                               │
 └───────────────┴───────────────────────────────────────────────┘
-
 ```
 
-## Key UI primitives
+### Component Architecture
 
-These components are stable contracts and should be reused everywhere.
+**Layout Components:**
 
-### Layout
+- `AppShell` - Main application wrapper
+- `TopBar` - Navigation and global actions
+- `SidebarNav` - Main navigation menu
 
-- AppShell
-- TopBar
-- SidebarNav
-- Breadcrumbs
+**Common Components:**
 
-### Page composition
+- `PageState` - Empty states and error messages
+- `AuthRequiredCallout` - Authentication prompts
 
-- PageHeader
-- StatCards
-- FilterBar
-- DataTable
-- Drawer
-- ChartCard
-- CodeBlock
-- BadgeStatus
+**UI Primitives (shadcn/ui):**
 
-> Rule: new features should compose existing primitives before introducing new ones.
+- Badge, Button, Input, Select, Tooltip
+- DropdownMenu, Sheet (drawer)
+- Separator
+
+All components follow the shadcn/ui pattern for easy customization and theming.
 
 ---
 
-## Feature ownership
+## Theming & Design Tokens
 
-```txt
+Testhub uses CSS custom properties for consistent theming across light and dark modes.
 
-features/
-  projects/    → project selection & overview
-  runs/        → runs list, run details, ingestion metadata
-  tests/       → test explorer & history
-  analytics/   → trends and aggregates
+### Base Tokens
 
-```
+All colors use semantic naming:
 
-Each feature owns:
+- `--background`, `--foreground` - Page-level colors
+- `--card`, `--card-foreground` - Card containers
+- `--primary`, `--secondary`, `--accent` - Action colors
+- `--muted` - Subtle backgrounds
+- `--destructive` - Error and delete actions
+- `--border`, `--input`, `--ring` - Form elements
 
-- its routes
-- its API hooks
-- its domain-specific UI components
+### Status Tokens
 
-Shared UI lives in `components/common`.
+Test results use dedicated status tokens:
 
----
+- `--status-pass`, `--status-pass-foreground`
+- `--status-fail`, `--status-fail-foreground`
+- `--status-skip`, `--status-skip-foreground`
+- `--status-flaky`, `--status-flaky-foreground`
 
-## Backend principles
+### Chart Tokens
 
-- SQL is a first-class citizen
-- Queries are explicit and reviewable
-- Pagination, filtering, and sorting are mandatory for list endpoints
-- Heavy text blobs (stack traces, stdout, stderr) are lazy-loaded
-- JSONB is used only for extensible metadata
-- Authentication and org scoping are enforced at the route boundary
+Analytics and trends use chart tokens:
 
----
+- `--chart-1` through `--chart-5`
 
-## Design tokens & theming
-
-Testhub uses design tokens (CSS variables) to guarantee:
-
-- consistent light and dark modes
-- easy UI evolution
-- zero hard-coded colors
-
-### Base tokens
-
-```txt
-
---background
---foreground
---card
---card-foreground
---border
---input
---ring
---primary
---primary-foreground
---secondary
---secondary-foreground
---muted
---muted-foreground
---accent
---accent-foreground
---destructive
---destructive-foreground
---radius
-
-```
-
-### Status tokens
-
-```txt
-
---status-pass
---status-pass-foreground
---status-fail
---status-fail-foreground
---status-skip
---status-skip-foreground
---status-flaky
---status-flaky-foreground
-
-```
-
-### Chart tokens
-
-```txt
-
---chart-1
---chart-2
---chart-3
---chart-4
---chart-5
-
-```
-
-### Token rules
+### Design Rules
 
 - No hard-coded hex colors in components
-- No utility colors for status (e.g. text-red-500)
-- All status colors use status tokens
+- Use semantic token classes (`bg-card`, `text-muted-foreground`)
+- All status indicators use status tokens
 - All charts use chart tokens
-- Components use semantic classes (bg-card, text-muted-foreground)
+- Dark mode works automatically via CSS variables
 
 ---
 
-## Performance rules (non-negotiable)
+## Contributing
 
-- All list endpoints are paginated
-- No endpoint returns unbounded result sets
-- Summary counts are precomputed or indexed
-- Tables do not fetch stack traces by default
-- UI shows loading skeletons instead of blocking
+This project follows these principles:
+
+1. **Explicit over implicit** - No magic, clear data flow
+2. **SQL-first thinking** - Queries are reviewable and optimized
+3. **Type safety** - TypeScript everywhere, generated from contracts
+4. **Component reuse** - Build with existing primitives first
+5. **Performance by default** - Pagination and lazy loading everywhere
+
+### Development Commands
+
+**Backend (api-ts):**
+
+```bash
+pnpm dev              # Start dev server with hot reload
+pnpm typecheck        # Run TypeScript type checking
+pnpm prisma:generate  # Generate Prisma client
+pnpm prisma:migrate   # Run database migrations
+pnpm prisma:studio    # Open Prisma Studio GUI
+pnpm seed             # Seed test data
+```
+
+**Frontend (web):**
+
+```bash
+pnpm dev              # Start Vite dev server
+pnpm build            # Build for production
+pnpm typecheck        # Run TypeScript type checking
+pnpm lint             # Run ESLint
+pnpm gen:openapi      # Generate TypeScript types from OpenAPI spec
+```
 
 ---
 
-## Extension points (future-ready)
+## License
 
-- Multiple report formats (JUnit, Pytest, others)
-- Flaky test detection heuristics
-- Slow test regression tracking
-- Materialized views for heavy analytics
-- Test ownership and tagging
-- CI deep-linking
-
-These are planned, not implemented in v1.
+MIT License - See [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Status
 
-Early development / MVP phase
+Active development - MVP complete with all core CRUD operations implemented.
 
-Backend foundation, authentication, and org scoping complete.
-Frontend integration begins in Step 9 (WIP).
+The application is functional for managing test projects, runs, and results with a clean API and modern web interface. See the roadmap for planned enhancements.

@@ -112,6 +112,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------- OpenAPI-derived domain types ----------
+
+// Runs / Results
 export type RunStatus = components['schemas']['RunStatus'];
 export type TestStatus = components['schemas']['TestStatus'];
 
@@ -130,46 +132,72 @@ export type BatchResultsRequest = components['schemas']['BatchResultsRequest'];
 export type BatchResultsResponse =
 	components['schemas']['BatchResultsResponse'];
 
+// Projects
+export type Project = components['schemas']['Project'];
+export type ProjectListResponse = components['schemas']['ProjectListResponse'];
+export type CreateProjectRequest =
+	components['schemas']['CreateProjectRequest'];
+export type UpdateProjectRequest =
+	components['schemas']['UpdateProjectRequest'];
+
 // ---------- Typed API functions ----------
 
+// Path aliases (OpenAPI paths)
 type PathRuns = '/projects/{projectId}/runs';
 type PathRun = '/projects/{projectId}/runs/{runId}';
 type PathResults = '/projects/{projectId}/runs/{runId}/results';
 type PathResultsBatch = '/projects/{projectId}/runs/{runId}/results/batch';
 
-/**
- * Build a query string (skips undefined/null)
- */
-function qs(
-	params: Record<string, string | number | boolean | undefined | null>
-) {
-	const sp = new URLSearchParams();
-	for (const [k, v] of Object.entries(params)) {
-		if (v === undefined || v === null) continue;
-		sp.set(k, String(v));
-	}
-	const s = sp.toString();
-	return s ? `?${s}` : '';
+type PathProjects = '/projects';
+type PathProject = '/projects/{projectId}';
+
+// ----- Projects -----
+
+export function listProjects() {
+	type Res = ResponseBody<PathProjects, 'get', '200'>;
+	return apiFetch<Res>('/projects');
 }
 
-/**
- * Typed query params for GET /projects/{projectId}/runs
- * (derived from OpenAPI)
- */
-export type ListRunsQuery = NonNullable<
-	paths[PathRuns]['get']['parameters']
->['query'];
+export function createProject(body: CreateProjectRequest) {
+	type Req = RequestBody<PathProjects, 'post'>;
+	type Res = ResponseBody<PathProjects, 'post', '201'>;
 
-export function listRuns(projectSlug: string, query?: ListRunsQuery) {
-	type Res = ResponseBody<PathRuns, 'get', '200'>;
+	const payload: Req = body;
 
-	const q = qs({
-		limit: query?.limit,
-		cursor: query?.cursor,
-		status: query?.status,
+	return apiFetch<Res>('/projects', {
+		method: 'POST',
+		body: JSON.stringify(payload),
 	});
+}
 
-	return apiFetch<Res>(`/projects/${encodeURIComponent(projectSlug)}/runs${q}`);
+export function getProject(projectId: string) {
+	type Res = ResponseBody<PathProject, 'get', '200'>;
+	return apiFetch<Res>(`/projects/${encodeURIComponent(projectId)}`);
+}
+
+export function updateProject(projectId: string, body: UpdateProjectRequest) {
+	type Req = RequestBody<PathProject, 'patch'>;
+	type Res = ResponseBody<PathProject, 'patch', '200'>;
+
+	const payload: Req = body;
+
+	return apiFetch<Res>(`/projects/${encodeURIComponent(projectId)}`, {
+		method: 'PATCH',
+		body: JSON.stringify(payload),
+	});
+}
+
+export function deleteProject(projectId: string) {
+	return apiFetch<void>(`/projects/${encodeURIComponent(projectId)}`, {
+		method: 'DELETE',
+	});
+}
+
+// ----- Runs -----
+
+export function listRuns(projectSlug: string) {
+	type Res = ResponseBody<PathRuns, 'get', '200'>;
+	return apiFetch<Res>(`/projects/${encodeURIComponent(projectSlug)}/runs`);
 }
 
 export function createRun(projectSlug: string) {
@@ -193,6 +221,17 @@ export function getRun(projectSlug: string, runId: string) {
 	);
 }
 
+export function deleteRun(projectSlug: string, runId: string) {
+	return apiFetch<void>(
+		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
+			runId
+		)}`,
+		{
+			method: 'DELETE',
+		}
+	);
+}
+
 export function listRunResults(projectSlug: string, runId: string) {
 	type Res = ResponseBody<PathResults, 'get', '200'>;
 	return apiFetch<Res>(
@@ -207,7 +246,7 @@ export function batchIngestResults(
 	runId: string,
 	body: BatchResultsRequest
 ) {
-	type Res = ResponseBody<PathResultsBatch, 'post', '200'>;
+	type Res = ResponseBody<PathResultsBatch, 'post', '201'>;
 
 	return apiFetch<Res>(
 		`/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(
