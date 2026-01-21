@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/useAuth';
 import {
 	ApiError,
@@ -28,6 +29,7 @@ function slugify(value: string) {
 
 export function ProjectsPage() {
 	const { apiKey, hasApiKey } = useAuth();
+	const navigate = useNavigate();
 
 	const [projects, setProjects] = React.useState<Project[]>([]);
 	const [loading, setLoading] = React.useState(true);
@@ -247,7 +249,18 @@ export function ProjectsPage() {
 						{projects.map((p) => (
 							<div
 								key={p.id}
-								className='grid grid-cols-12 items-center gap-2 px-4 py-3 text-sm'>
+								tabIndex={0}
+								role='button'
+								onClick={() =>
+									navigate(`/projects/${encodeURIComponent(p.slug)}`)
+								}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										e.preventDefault();
+										navigate(`/projects/${encodeURIComponent(p.slug)}`);
+									}
+								}}
+								className='grid grid-cols-12 items-center gap-2 px-4 py-3 text-sm cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'>
 								<div className='col-span-4 font-medium truncate'>{p.name}</div>
 								<div className='col-span-3 text-muted-foreground truncate'>
 									{p.slug}
@@ -259,7 +272,10 @@ export function ProjectsPage() {
 									<Button
 										variant='outline'
 										size='sm'
-										onClick={() => onDeleteProject(p)}
+										onClick={(e) => {
+											e.stopPropagation();
+											void onDeleteProject(p);
+										}}
 										disabled={deleting === p.id}
 										className='text-destructive hover:text-destructive'>
 										{deleting === p.id ? 'Deleting…' : 'Delete'}
