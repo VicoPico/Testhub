@@ -11,6 +11,7 @@ import { authPlugin } from './plugins/auth';
 import { healthRoutes } from './routes/health';
 import { runRoutes } from './routes/runs';
 import { projectRoutes } from './routes/projects';
+import { testRoutes } from './routes/tests';
 
 export function buildApp() {
 	const app = Fastify({ logger: true });
@@ -34,6 +35,7 @@ export function buildApp() {
 	app.register(healthRoutes);
 	app.register(runRoutes);
 	app.register(projectRoutes);
+	app.register(testRoutes);
 
 	// Central error handler so OpenAPI validation / httpErrors
 	// all return a consistent shape that matches ErrorResponse.
@@ -52,15 +54,15 @@ export function buildApp() {
 			typeof anyErr.message === 'string'
 				? anyErr.message
 				: statusCode >= 500
-				? 'Internal Server Error'
-				: 'Bad Request';
+					? 'Internal Server Error'
+					: 'Bad Request';
 
 		const errorName =
 			typeof anyErr.name === 'string'
 				? anyErr.name
 				: statusCode >= 500
-				? 'Internal Server Error'
-				: 'Bad Request';
+					? 'Internal Server Error'
+					: 'Bad Request';
 
 		reply.status(statusCode).send({
 			statusCode,
