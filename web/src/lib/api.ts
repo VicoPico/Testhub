@@ -1,7 +1,12 @@
 import { getApiKey } from './auth';
 import type { components, operations, paths } from '@/gen/openapi';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE =
+	import.meta.env.VITE_API_BASE ??
+	import.meta.env.VITE_API_BASE_URL ??
+	import.meta.env.VITE_TESTHUB_API_BASE_URL ??
+	import.meta.env.VITE_API_URL ??
+	'http://localhost:8080';
 const DEV_API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export class ApiError extends Error {
@@ -132,6 +137,14 @@ export type BatchResultsRequest = components['schemas']['BatchResultsRequest'];
 export type BatchResultsResponse =
 	components['schemas']['BatchResultsResponse'];
 
+// Tests
+export type TestCaseListItem = components['schemas']['TestCaseListItem'];
+export type TestCaseListResponse =
+	components['schemas']['TestCaseListResponse'];
+export type TestCaseHistoryItem = components['schemas']['TestCaseHistoryItem'];
+export type TestCaseHistoryResponse =
+	components['schemas']['TestCaseHistoryResponse'];
+
 // Projects
 export type Project = components['schemas']['Project'];
 export type ProjectListResponse = components['schemas']['ProjectListResponse'];
@@ -145,6 +158,14 @@ export type ListRunsQuery = NonNullable<
 	operations['listRuns']['parameters']['query']
 >;
 
+export type ListTestsQuery = NonNullable<
+	operations['listTests']['parameters']['query']
+>;
+
+export type TestHistoryQuery = NonNullable<
+	operations['getTestHistory']['parameters']['query']
+>;
+
 // ---------- Typed API functions ----------
 
 // Path aliases (OpenAPI paths)
@@ -152,6 +173,9 @@ type PathRuns = '/projects/{projectId}/runs';
 type PathRun = '/projects/{projectId}/runs/{runId}';
 type PathResults = '/projects/{projectId}/runs/{runId}/results';
 type PathResultsBatch = '/projects/{projectId}/runs/{runId}/results/batch';
+
+type PathTests = '/projects/{projectId}/tests';
+type PathTestHistory = '/projects/{projectId}/tests/{testCaseId}/history';
 
 type PathProjects = '/projects';
 type PathProject = '/projects/{projectId}';
@@ -270,4 +294,38 @@ export function batchIngestResults(
 			body: JSON.stringify(body),
 		},
 	);
+}
+
+// ----- Tests -----
+
+export function listTests(
+	projectSlug: string,
+	query?: Partial<ListTestsQuery>,
+) {
+	type Res = ResponseBody<PathTests, 'get', 200>;
+	const params = new URLSearchParams();
+	if (query?.limit) params.set('limit', String(query.limit));
+	if (query?.q) params.set('q', query.q);
+	if (query?.suite) params.set('suite', query.suite);
+	if (query?.status) params.set('status', query.status);
+	const queryString = params.toString();
+	const path = `/projects/${encodeURIComponent(projectSlug)}/tests${
+		queryString ? `?${queryString}` : ''
+	}`;
+	return apiFetch<Res>(path);
+}
+
+export function getTestHistory(
+	projectSlug: string,
+	testCaseId: string,
+	query?: Partial<TestHistoryQuery>,
+) {
+	type Res = ResponseBody<PathTestHistory, 'get', 200>;
+	const params = new URLSearchParams();
+	if (query?.limit) params.set('limit', String(query.limit));
+	const queryString = params.toString();
+	const path = `/projects/${encodeURIComponent(projectSlug)}/tests/${encodeURIComponent(
+		testCaseId,
+	)}/history${queryString ? `?${queryString}` : ''}`;
+	return apiFetch<Res>(path);
 }

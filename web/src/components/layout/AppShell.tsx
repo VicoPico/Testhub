@@ -54,5 +54,3 @@ export function AppShell() {
 		</div>
 	);
 }
-// For debugging env vars, remove later!
-console.log(import.meta.env.VITE_API_URL);

@@ -172,6 +172,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List test cases for a project
+         * @description Returns test cases ordered by last-seen result desc.
+         */
+        get: operations["listTests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/tests/{testCaseId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get execution history for a test case */
+        get: operations["getTestHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -281,6 +318,40 @@ export interface components {
             suiteName?: string | null;
             tags: string[];
         };
+        TestCaseListItem: {
+            id: string;
+            externalId: string;
+            name: string;
+            suiteName?: string | null;
+            filePath?: string | null;
+            tags: string[];
+            /** Format: date-time */
+            createdAt: string;
+            lastStatus: components["schemas"]["TestStatus"] | null;
+            /** Format: date-time */
+            lastSeenAt: string | null;
+        };
+        TestCaseListResponse: {
+            items: components["schemas"]["TestCaseListItem"][];
+        };
+        TestCaseHistoryItem: {
+            id: string;
+            status: components["schemas"]["TestStatus"];
+            durationMs: number | null;
+            /** Format: date-time */
+            createdAt: string;
+            run: {
+                id: string;
+                /** Format: date-time */
+                createdAt: string;
+                status: components["schemas"]["RunStatus"];
+                branch: string | null;
+                commitSha: string | null;
+            };
+        };
+        TestCaseHistoryResponse: {
+            items: components["schemas"]["TestCaseHistoryItem"][];
+        };
         RunResultItem: {
             id: string;
             status: components["schemas"]["TestStatus"];
@@ -362,6 +433,14 @@ export interface components {
         /** @description Cursor pagination using the last seen run id. */
         Cursor: string;
         RunStatusFilter: components["schemas"]["RunStatus"];
+        TestCaseId: string;
+        /** @description Filter test cases by name or externalId (substring match). */
+        TestNameQuery: string;
+        /** @description Filter test cases by suiteName (substring match). */
+        TestSuiteFilter: string;
+        /** @description Filter test cases by last-seen status. */
+        TestStatusFilter: components["schemas"]["TestStatus"];
+        HistoryLimit: number;
     };
     requestBodies: never;
     headers: never;
@@ -699,6 +778,67 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTests: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                /** @description Filter test cases by name or externalId (substring match). */
+                q?: components["parameters"]["TestNameQuery"];
+                /** @description Filter test cases by suiteName (substring match). */
+                suite?: components["parameters"]["TestSuiteFilter"];
+                /** @description Filter test cases by last-seen status. */
+                status?: components["parameters"]["TestStatusFilter"];
+            };
+            header?: never;
+            path: {
+                /** @description Project slug or database id (implementation accepts both). */
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTestHistory: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["HistoryLimit"];
+            };
+            header?: never;
+            path: {
+                /** @description Project slug or database id (implementation accepts both). */
+                projectId: components["parameters"]["ProjectId"];
+                testCaseId: components["parameters"]["TestCaseId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseHistoryResponse"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
