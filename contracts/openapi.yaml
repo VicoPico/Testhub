@@ -2,7 +2,7 @@ openapi: 3.0.3
 
 info:
   title: Testhub API
-  version: 0.3.0
+  version: 0.6.0
   description: |
     Core API for Testhub (runs, results ingestion).
 
@@ -29,6 +29,8 @@ tags:
     description: Test results for a run
   - name: Ingestion
     description: Endpoints used by CI to ingest test data
+  - name: Analytics
+    description: Aggregated analytics for a project
 
 paths:
   /health:
@@ -356,6 +358,70 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # ---------- Analytics ----------
+
+  /projects/{projectId}/analytics/timeseries:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsTimeseries
+      summary: Daily result counts over time
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/AnalyticsDays'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsTimeseriesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /projects/{projectId}/analytics/slowest-tests:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsSlowestTests
+      summary: Slowest tests in the time window
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/AnalyticsDays'
+        - $ref: '#/components/parameters/AnalyticsLimit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSlowTestsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /projects/{projectId}/analytics/most-failing-tests:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsMostFailingTests
+      summary: Most failing tests in the time window
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/AnalyticsDays'
+        - $ref: '#/components/parameters/AnalyticsLimit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsMostFailingTestsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -448,6 +514,27 @@ components:
         minimum: 1
         maximum: 200
         default: 50
+
+    AnalyticsDays:
+      name: days
+      in: query
+      required: false
+      description: Number of days to include (including today).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 90
+        default: 7
+
+    AnalyticsLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
 
   responses:
     Unauthorized:
@@ -838,6 +925,122 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TestCaseHistoryItem'
+      additionalProperties: false
+
+    AnalyticsTimeseriesItem:
+      type: object
+      required:
+        [day, passedCount, failedCount, skippedCount, errorCount, totalCount]
+      properties:
+        day:
+          type: string
+          format: date
+        passedCount:
+          type: integer
+        failedCount:
+          type: integer
+        skippedCount:
+          type: integer
+        errorCount:
+          type: integer
+        totalCount:
+          type: integer
+      additionalProperties: false
+
+    AnalyticsTimeseriesResponse:
+      type: object
+      required: [days, items]
+      properties:
+        days:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsTimeseriesItem'
+      additionalProperties: false
+
+    AnalyticsSlowTestItem:
+      type: object
+      required:
+        [
+          testCaseId,
+          externalId,
+          name,
+          suiteName,
+          avgDurationMs,
+          maxDurationMs,
+          samplesCount,
+        ]
+      properties:
+        testCaseId:
+          type: string
+        externalId:
+          type: string
+        name:
+          type: string
+        suiteName:
+          type: string
+          nullable: true
+        avgDurationMs:
+          type: integer
+        maxDurationMs:
+          type: integer
+        samplesCount:
+          type: integer
+      additionalProperties: false
+
+    AnalyticsSlowTestsResponse:
+      type: object
+      required: [days, items]
+      properties:
+        days:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsSlowTestItem'
+      additionalProperties: false
+
+    AnalyticsMostFailingTestItem:
+      type: object
+      required:
+        [
+          testCaseId,
+          externalId,
+          name,
+          suiteName,
+          failedCount,
+          errorCount,
+          totalCount,
+        ]
+      properties:
+        testCaseId:
+          type: string
+        externalId:
+          type: string
+        name:
+          type: string
+        suiteName:
+          type: string
+          nullable: true
+        failedCount:
+          type: integer
+        errorCount:
+          type: integer
+        totalCount:
+          type: integer
+      additionalProperties: false
+
+    AnalyticsMostFailingTestsResponse:
+      type: object
+      required: [days, items]
+      properties:
+        days:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsMostFailingTestItem'
       additionalProperties: false
 
     RunResultItem:
