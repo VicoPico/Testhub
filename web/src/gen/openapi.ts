@@ -209,6 +209,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{projectId}/analytics/timeseries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Daily result counts over time */
+        get: operations["getAnalyticsTimeseries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/analytics/slowest-tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Slowest tests in the time window */
+        get: operations["getAnalyticsSlowestTests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/analytics/most-failing-tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Most failing tests in the time window */
+        get: operations["getAnalyticsMostFailingTests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -247,6 +298,8 @@ export interface components {
         RunStatus: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELED";
         /** @enum {string} */
         TestStatus: "PASSED" | "FAILED" | "SKIPPED" | "ERROR";
+        /** @enum {string|null} */
+        NullableTestStatus: "PASSED" | "FAILED" | "SKIPPED" | "ERROR" | null;
         RunListItem: {
             id: string;
             /** Format: date-time */
@@ -327,7 +380,7 @@ export interface components {
             tags: string[];
             /** Format: date-time */
             createdAt: string;
-            lastStatus: components["schemas"]["TestStatus"] | null;
+            lastStatus: components["schemas"]["NullableTestStatus"];
             /** Format: date-time */
             lastSeenAt: string | null;
         };
@@ -351,6 +404,45 @@ export interface components {
         };
         TestCaseHistoryResponse: {
             items: components["schemas"]["TestCaseHistoryItem"][];
+        };
+        AnalyticsTimeseriesItem: {
+            /** Format: date */
+            day: string;
+            passedCount: number;
+            failedCount: number;
+            skippedCount: number;
+            errorCount: number;
+            totalCount: number;
+        };
+        AnalyticsTimeseriesResponse: {
+            days: number;
+            items: components["schemas"]["AnalyticsTimeseriesItem"][];
+        };
+        AnalyticsSlowTestItem: {
+            testCaseId: string;
+            externalId: string;
+            name: string;
+            suiteName: string | null;
+            avgDurationMs: number;
+            maxDurationMs: number;
+            samplesCount: number;
+        };
+        AnalyticsSlowTestsResponse: {
+            days: number;
+            items: components["schemas"]["AnalyticsSlowTestItem"][];
+        };
+        AnalyticsMostFailingTestItem: {
+            testCaseId: string;
+            externalId: string;
+            name: string;
+            suiteName: string | null;
+            failedCount: number;
+            errorCount: number;
+            totalCount: number;
+        };
+        AnalyticsMostFailingTestsResponse: {
+            days: number;
+            items: components["schemas"]["AnalyticsMostFailingTestItem"][];
         };
         RunResultItem: {
             id: string;
@@ -441,6 +533,9 @@ export interface components {
         /** @description Filter test cases by last-seen status. */
         TestStatusFilter: components["schemas"]["TestStatus"];
         HistoryLimit: number;
+        /** @description Number of days to include (including today). */
+        AnalyticsDays: number;
+        AnalyticsLimit: number;
     };
     requestBodies: never;
     headers: never;
@@ -837,6 +932,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestCaseHistoryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAnalyticsTimeseries: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include (including today). */
+                days?: components["parameters"]["AnalyticsDays"];
+            };
+            header?: never;
+            path: {
+                /** @description Project slug or database id (implementation accepts both). */
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsTimeseriesResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAnalyticsSlowestTests: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include (including today). */
+                days?: components["parameters"]["AnalyticsDays"];
+                limit?: components["parameters"]["AnalyticsLimit"];
+            };
+            header?: never;
+            path: {
+                /** @description Project slug or database id (implementation accepts both). */
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsSlowTestsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getAnalyticsMostFailingTests: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include (including today). */
+                days?: components["parameters"]["AnalyticsDays"];
+                limit?: components["parameters"]["AnalyticsLimit"];
+            };
+            header?: never;
+            path: {
+                /** @description Project slug or database id (implementation accepts both). */
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsMostFailingTestsResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

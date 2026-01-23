@@ -145,6 +145,22 @@ export type TestCaseHistoryItem = components['schemas']['TestCaseHistoryItem'];
 export type TestCaseHistoryResponse =
 	components['schemas']['TestCaseHistoryResponse'];
 
+// Analytics
+export type AnalyticsTimeseriesItem =
+	components['schemas']['AnalyticsTimeseriesItem'];
+export type AnalyticsTimeseriesResponse =
+	components['schemas']['AnalyticsTimeseriesResponse'];
+
+export type AnalyticsSlowTestItem =
+	components['schemas']['AnalyticsSlowTestItem'];
+export type AnalyticsSlowTestsResponse =
+	components['schemas']['AnalyticsSlowTestsResponse'];
+
+export type AnalyticsMostFailingTestItem =
+	components['schemas']['AnalyticsMostFailingTestItem'];
+export type AnalyticsMostFailingTestsResponse =
+	components['schemas']['AnalyticsMostFailingTestsResponse'];
+
 // Projects
 export type Project = components['schemas']['Project'];
 export type ProjectListResponse = components['schemas']['ProjectListResponse'];
@@ -166,6 +182,16 @@ export type TestHistoryQuery = NonNullable<
 	operations['getTestHistory']['parameters']['query']
 >;
 
+export type AnalyticsTimeseriesQuery = NonNullable<
+	operations['getAnalyticsTimeseries']['parameters']['query']
+>;
+export type AnalyticsSlowestTestsQuery = NonNullable<
+	operations['getAnalyticsSlowestTests']['parameters']['query']
+>;
+export type AnalyticsMostFailingTestsQuery = NonNullable<
+	operations['getAnalyticsMostFailingTests']['parameters']['query']
+>;
+
 // ---------- Typed API functions ----------
 
 // Path aliases (OpenAPI paths)
@@ -176,6 +202,12 @@ type PathResultsBatch = '/projects/{projectId}/runs/{runId}/results/batch';
 
 type PathTests = '/projects/{projectId}/tests';
 type PathTestHistory = '/projects/{projectId}/tests/{testCaseId}/history';
+
+type PathAnalyticsTimeseries = '/projects/{projectId}/analytics/timeseries';
+type PathAnalyticsSlowestTests =
+	'/projects/{projectId}/analytics/slowest-tests';
+type PathAnalyticsMostFailingTests =
+	'/projects/{projectId}/analytics/most-failing-tests';
 
 type PathProjects = '/projects';
 type PathProject = '/projects/{projectId}';
@@ -327,5 +359,51 @@ export function getTestHistory(
 	const path = `/projects/${encodeURIComponent(projectSlug)}/tests/${encodeURIComponent(
 		testCaseId,
 	)}/history${queryString ? `?${queryString}` : ''}`;
+	return apiFetch<Res>(path);
+}
+
+// ----- Analytics -----
+
+export function getAnalyticsTimeseries(
+	projectSlug: string,
+	query?: Partial<AnalyticsTimeseriesQuery>,
+) {
+	type Res = ResponseBody<PathAnalyticsTimeseries, 'get', 200>;
+	const params = new URLSearchParams();
+	if (query?.days) params.set('days', String(query.days));
+	const queryString = params.toString();
+	const path = `/projects/${encodeURIComponent(projectSlug)}/analytics/timeseries${
+		queryString ? `?${queryString}` : ''
+	}`;
+	return apiFetch<Res>(path);
+}
+
+export function getAnalyticsSlowestTests(
+	projectSlug: string,
+	query?: Partial<AnalyticsSlowestTestsQuery>,
+) {
+	type Res = ResponseBody<PathAnalyticsSlowestTests, 'get', 200>;
+	const params = new URLSearchParams();
+	if (query?.days) params.set('days', String(query.days));
+	if (query?.limit) params.set('limit', String(query.limit));
+	const queryString = params.toString();
+	const path = `/projects/${encodeURIComponent(projectSlug)}/analytics/slowest-tests${
+		queryString ? `?${queryString}` : ''
+	}`;
+	return apiFetch<Res>(path);
+}
+
+export function getAnalyticsMostFailingTests(
+	projectSlug: string,
+	query?: Partial<AnalyticsMostFailingTestsQuery>,
+) {
+	type Res = ResponseBody<PathAnalyticsMostFailingTests, 'get', 200>;
+	const params = new URLSearchParams();
+	if (query?.days) params.set('days', String(query.days));
+	if (query?.limit) params.set('limit', String(query.limit));
+	const queryString = params.toString();
+	const path = `/projects/${encodeURIComponent(projectSlug)}/analytics/most-failing-tests${
+		queryString ? `?${queryString}` : ''
+	}`;
 	return apiFetch<Res>(path);
 }

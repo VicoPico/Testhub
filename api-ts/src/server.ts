@@ -12,6 +12,7 @@ import { healthRoutes } from './routes/health';
 import { runRoutes } from './routes/runs';
 import { projectRoutes } from './routes/projects';
 import { testRoutes } from './routes/tests';
+import { analyticsRoutes } from './routes/analytics';
 
 export function buildApp() {
 	const app = Fastify({ logger: true });
@@ -36,6 +37,7 @@ export function buildApp() {
 	app.register(runRoutes);
 	app.register(projectRoutes);
 	app.register(testRoutes);
+	app.register(analyticsRoutes);
 
 	// Central error handler so OpenAPI validation / httpErrors
 	// all return a consistent shape that matches ErrorResponse.
