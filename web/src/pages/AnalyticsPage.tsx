@@ -12,6 +12,19 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import {
+	Bar,
+	BarChart,
+	CartesianGrid,
+	Legend,
+	Line,
+	LineChart,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from 'recharts';
 import {
 	getAnalyticsMostFailingTests,
 	getAnalyticsSlowestTests,
@@ -37,6 +50,7 @@ export function AnalyticsPage() {
 
 	const [days, setDays] = useState<number>(7);
 	const limit = 20;
+	const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
 
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
@@ -56,6 +70,41 @@ export function AnalyticsPage() {
 		const totals = timeseries.reduce((acc, d) => acc + (d.totalCount ?? 0), 0);
 		return totals === 0;
 	}, [timeseries]);
+
+	const timeseriesChartData = useMemo(
+		() =>
+			timeseries.map((d) => ({
+				day: d.day,
+				passed: d.passedCount ?? 0,
+				failed: d.failedCount ?? 0,
+				error: d.errorCount ?? 0,
+				skipped: d.skippedCount ?? 0,
+				total: d.totalCount ?? 0,
+			})),
+		[timeseries],
+	);
+
+	const slowestChartData = useMemo(
+		() =>
+			slowest.map((t) => ({
+				name: t.name,
+				suite: t.suiteName ?? '—',
+				avg: t.avgDurationMs ?? 0,
+				max: t.maxDurationMs ?? 0,
+			})),
+		[slowest],
+	);
+
+	const mostFailingChartData = useMemo(
+		() =>
+			mostFailing.map((t) => ({
+				name: t.name,
+				suite: t.suiteName ?? '—',
+				failed: t.failedCount ?? 0,
+				error: t.errorCount ?? 0,
+			})),
+		[mostFailing],
+	);
 
 	const load = useCallback(
 		async (opts?: { silent?: boolean }) => {
@@ -147,6 +196,28 @@ export function AnalyticsPage() {
 							<SelectItem value='90'>Last 90 days</SelectItem>
 						</SelectContent>
 					</Select>
+					<div className='flex items-center gap-1 rounded-md border bg-card p-1'>
+						<Button
+							size='sm'
+							className={cn(
+								'h-8',
+								viewMode === 'table' ? '' : 'bg-transparent',
+							)}
+							variant={viewMode === 'table' ? 'default' : 'outline'}
+							onClick={() => setViewMode('table')}>
+							Tabular
+						</Button>
+						<Button
+							size='sm'
+							className={cn(
+								'h-8',
+								viewMode === 'chart' ? '' : 'bg-transparent',
+							)}
+							variant={viewMode === 'chart' ? 'default' : 'outline'}
+							onClick={() => setViewMode('chart')}>
+							Charts
+						</Button>
+					</div>
 					<Button
 						variant='secondary'
 						disabled={refreshing}
@@ -172,36 +243,62 @@ export function AnalyticsPage() {
 							Daily totals by status
 						</p>
 					</div>
-					<div className='mt-3 overflow-x-auto'>
-						<div className='min-w-[640px] divide-y rounded-md border'>
-							<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
-								<div>Day</div>
-								<div className='text-right'>Passed</div>
-								<div className='text-right'>Failed</div>
-								<div className='text-right'>Error</div>
-								<div className='text-right'>Skipped</div>
-								<div className='text-right'>Total</div>
-							</div>
-							{timeseries.length ? (
-								timeseries.map((d) => (
-									<div
-										key={d.day}
-										className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
-										<div className='font-mono text-xs'>{d.day}</div>
-										<div className='text-right'>{d.passedCount}</div>
-										<div className='text-right'>{d.failedCount}</div>
-										<div className='text-right'>{d.errorCount}</div>
-										<div className='text-right'>{d.skippedCount}</div>
-										<div className='text-right font-medium'>{d.totalCount}</div>
-									</div>
-								))
-							) : (
-								<div className='px-3 py-3 text-sm text-muted-foreground'>
-									No data.
+					{viewMode === 'table' ? (
+						<div className='mt-3 overflow-x-auto'>
+							<div className='min-w-[640px] divide-y rounded-md border'>
+								<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
+									<div>Day</div>
+									<div className='text-right'>Passed</div>
+									<div className='text-right'>Failed</div>
+									<div className='text-right'>Error</div>
+									<div className='text-right'>Skipped</div>
+									<div className='text-right'>Total</div>
 								</div>
+								{timeseries.length ? (
+									timeseries.map((d) => (
+										<div
+											key={d.day}
+											className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
+											<div className='font-mono text-xs'>{d.day}</div>
+											<div className='text-right'>{d.passedCount}</div>
+											<div className='text-right'>{d.failedCount}</div>
+											<div className='text-right'>{d.errorCount}</div>
+											<div className='text-right'>{d.skippedCount}</div>
+											<div className='text-right font-medium'>
+												{d.totalCount}
+											</div>
+										</div>
+									))
+								) : (
+									<div className='px-3 py-3 text-sm text-muted-foreground'>
+										No data.
+									</div>
+								)}
+							</div>
+						</div>
+					) : (
+						<div className='mt-4 h-64 rounded-md border p-3'>
+							{timeseries.length ? (
+								<ResponsiveContainer width='100%' height='100%'>
+									<BarChart
+										data={timeseriesChartData}
+										margin={{ left: 8, right: 8 }}>
+										<CartesianGrid strokeDasharray='3 3' />
+										<XAxis dataKey='day' tick={{ fontSize: 10 }} />
+										<YAxis tick={{ fontSize: 10 }} />
+										<Tooltip />
+										<Legend />
+										<Bar dataKey='passed' stackId='a' fill='var(--chart-2)' />
+										<Bar dataKey='failed' stackId='a' fill='var(--chart-5)' />
+										<Bar dataKey='error' stackId='a' fill='var(--chart-4)' />
+										<Bar dataKey='skipped' stackId='a' fill='var(--chart-3)' />
+									</BarChart>
+								</ResponsiveContainer>
+							) : (
+								<div className='text-sm text-muted-foreground'>No data.</div>
 							)}
 						</div>
-					</div>
+					)}
 				</section>
 
 				<section className='grid gap-6 lg:grid-cols-2'>
@@ -210,36 +307,74 @@ export function AnalyticsPage() {
 						<p className='mt-1 text-xs text-muted-foreground'>
 							Top {limit} by avg duration
 						</p>
-						<div className='mt-3 overflow-x-auto'>
-							<div className='min-w-[520px] divide-y rounded-md border'>
-								<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
-									<div className='col-span-2'>Test</div>
-									<div className='col-span-2'>Suite</div>
-									<div className='text-right'>Avg</div>
-									<div className='text-right'>Max</div>
-								</div>
-								{slowest.length ? (
-									slowest.map((t) => (
-										<div
-											key={t.testCaseId}
-											className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
-											<div className='col-span-2 truncate font-mono text-xs'>
-												{t.name}
+						{viewMode === 'table' ? (
+							<div className='mt-3 overflow-x-auto'>
+								<div className='min-w-[520px] divide-y rounded-md border'>
+									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
+										<div className='col-span-2'>Test</div>
+										<div className='col-span-2'>Suite</div>
+										<div className='text-right'>Avg</div>
+										<div className='text-right'>Max</div>
+									</div>
+									{slowest.length ? (
+										slowest.map((t) => (
+											<div
+												key={t.testCaseId}
+												className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.name}
+												</div>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.suiteName ?? '—'}
+												</div>
+												<div className='text-right'>{ms(t.avgDurationMs)}</div>
+												<div className='text-right'>{ms(t.maxDurationMs)}</div>
 											</div>
-											<div className='col-span-2 truncate font-mono text-xs'>
-												{t.suiteName ?? '—'}
-											</div>
-											<div className='text-right'>{ms(t.avgDurationMs)}</div>
-											<div className='text-right'>{ms(t.maxDurationMs)}</div>
+										))
+									) : (
+										<div className='px-3 py-3 text-sm text-muted-foreground'>
+											No slow tests yet.
 										</div>
-									))
+									)}
+								</div>
+							</div>
+						) : (
+							<div className='mt-4 h-64 rounded-md border p-3'>
+								{slowestChartData.length ? (
+									<ResponsiveContainer width='100%' height='100%'>
+										<BarChart
+											data={slowestChartData}
+											layout='vertical'
+											margin={{ left: 16, right: 16 }}>
+											<CartesianGrid strokeDasharray='3 3' />
+											<XAxis type='number' tick={{ fontSize: 10 }} />
+											<YAxis
+												dataKey='name'
+												type='category'
+												width={140}
+												tick={{ fontSize: 10 }}
+											/>
+											<Tooltip />
+											<Legend />
+											<Bar
+												dataKey='avg'
+												fill='var(--chart-1)'
+												name='Avg (ms)'
+											/>
+											<Bar
+												dataKey='max'
+												fill='var(--chart-3)'
+												name='Max (ms)'
+											/>
+										</BarChart>
+									</ResponsiveContainer>
 								) : (
-									<div className='px-3 py-3 text-sm text-muted-foreground'>
+									<div className='text-sm text-muted-foreground'>
 										No slow tests yet.
 									</div>
 								)}
 							</div>
-						</div>
+						)}
 					</div>
 
 					<div className='rounded-lg border bg-card p-4'>
@@ -247,36 +382,76 @@ export function AnalyticsPage() {
 						<p className='mt-1 text-xs text-muted-foreground'>
 							Top {limit} by fail/error count
 						</p>
-						<div className='mt-3 overflow-x-auto'>
-							<div className='min-w-[520px] divide-y rounded-md border'>
-								<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
-									<div className='col-span-2'>Test</div>
-									<div className='col-span-2'>Suite</div>
-									<div className='text-right'>Fail</div>
-									<div className='text-right'>Err</div>
-								</div>
-								{mostFailing.length ? (
-									mostFailing.map((t) => (
-										<div
-											key={t.testCaseId}
-											className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
-											<div className='col-span-2 truncate font-mono text-xs'>
-												{t.name}
+						{viewMode === 'table' ? (
+							<div className='mt-3 overflow-x-auto'>
+								<div className='min-w-[520px] divide-y rounded-md border'>
+									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
+										<div className='col-span-2'>Test</div>
+										<div className='col-span-2'>Suite</div>
+										<div className='text-right'>Fail</div>
+										<div className='text-right'>Err</div>
+									</div>
+									{mostFailing.length ? (
+										mostFailing.map((t) => (
+											<div
+												key={t.testCaseId}
+												className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.name}
+												</div>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.suiteName ?? '—'}
+												</div>
+												<div className='text-right'>{t.failedCount}</div>
+												<div className='text-right'>{t.errorCount}</div>
 											</div>
-											<div className='col-span-2 truncate font-mono text-xs'>
-												{t.suiteName ?? '—'}
-											</div>
-											<div className='text-right'>{t.failedCount}</div>
-											<div className='text-right'>{t.errorCount}</div>
+										))
+									) : (
+										<div className='px-3 py-3 text-sm text-muted-foreground'>
+											No failing tests yet.
 										</div>
-									))
+									)}
+								</div>
+							</div>
+						) : (
+							<div className='mt-4 h-64 rounded-md border p-3'>
+								{mostFailingChartData.length ? (
+									<ResponsiveContainer width='100%' height='100%'>
+										<BarChart
+											data={mostFailingChartData}
+											layout='vertical'
+											margin={{ left: 16, right: 16 }}>
+											<CartesianGrid strokeDasharray='3 3' />
+											<XAxis type='number' tick={{ fontSize: 10 }} />
+											<YAxis
+												dataKey='name'
+												type='category'
+												width={140}
+												tick={{ fontSize: 10 }}
+											/>
+											<Tooltip />
+											<Legend />
+											<Bar
+												dataKey='failed'
+												stackId='a'
+												fill='var(--chart-5)'
+												name='Failed'
+											/>
+											<Bar
+												dataKey='error'
+												stackId='a'
+												fill='var(--chart-4)'
+												name='Error'
+											/>
+										</BarChart>
+									</ResponsiveContainer>
 								) : (
-									<div className='px-3 py-3 text-sm text-muted-foreground'>
+									<div className='text-sm text-muted-foreground'>
 										No failing tests yet.
 									</div>
 								)}
 							</div>
-						</div>
+						)}
 					</div>
 				</section>
 			</div>
