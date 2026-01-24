@@ -49,6 +49,8 @@ export function TestsPage() {
 
 	const [items, setItems] = React.useState<TestCaseListItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
+	const [isRefreshing, setIsRefreshing] = React.useState(false);
+	const [hasLoaded, setHasLoaded] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
 
@@ -80,12 +82,15 @@ export function TestsPage() {
 			setItems([]);
 			setSelected(null);
 			setLoading(false);
+			setIsRefreshing(false);
+			setHasLoaded(false);
 			setError(null);
 			setLastError(null);
 			return;
 		}
 
-		setLoading(true);
+		if (!hasLoaded) setLoading(true);
+		else setIsRefreshing(true);
 		setError(null);
 		setLastError(null);
 
@@ -97,13 +102,15 @@ export function TestsPage() {
 				status: status === 'ALL' ? undefined : status,
 			});
 			setItems(data.items);
+			setHasLoaded(true);
 		} catch (e) {
 			setLastError(e);
 			setError(e instanceof Error ? e.message : 'Unknown error');
 		} finally {
 			setLoading(false);
+			setIsRefreshing(false);
 		}
-	}, [hasApiKey, pid, q, suite, status]);
+	}, [hasApiKey, pid, q, suite, status, hasLoaded]);
 
 	React.useEffect(() => {
 		void refresh();
@@ -236,6 +243,9 @@ export function TestsPage() {
 					disabled={!hasApiKey}>
 					Clear filters
 				</Button>
+				{isRefreshing ? (
+					<span className='text-xs text-muted-foreground'>Updating…</span>
+				) : null}
 			</div>
 
 			{error ? (
