@@ -91,16 +91,41 @@ ChartContainer.displayName = 'ChartContainer';
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+type ChartTooltipPayload = {
+	name?: React.ReactNode;
+	value?: number | string | Array<number | string>;
+	dataKey?: string | number;
+	color?: string;
+	type?: string;
+	payload?: Record<string, unknown>;
+};
+
+type ChartTooltipContentProps = React.ComponentProps<'div'> & {
+	active?: boolean;
+	payload?: ChartTooltipPayload[];
+	label?: number | string;
+	labelFormatter?: (
+		label: unknown,
+		payload?: ChartTooltipPayload[],
+	) => React.ReactNode;
+	formatter?: (
+		value: ChartTooltipPayload['value'],
+		name: string,
+		item: ChartTooltipPayload,
+		index: number,
+		payload: ChartTooltipPayload[],
+	) => React.ReactNode | [React.ReactNode, React.ReactNode];
+	labelClassName?: string;
+	hideLabel?: boolean;
+	hideIndicator?: boolean;
+	indicator?: 'line' | 'dot' | 'dashed';
+	nameKey?: string;
+	labelKey?: string;
+};
+
 const ChartTooltipContent = React.forwardRef<
 	HTMLDivElement,
-	React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-		React.ComponentProps<'div'> & {
-			hideLabel?: boolean;
-			hideIndicator?: boolean;
-			indicator?: 'line' | 'dot' | 'dashed';
-			nameKey?: string;
-			labelKey?: string;
-		}
+	ChartTooltipContentProps
 >(
 	(
 		{
@@ -155,6 +180,7 @@ const ChartTooltipContent = React.forwardRef<
 							const color =
 								item.color ?? itemConfig?.color ?? `var(--color-${key})`;
 							const name = itemConfig?.label ?? item.name ?? key;
+							const nameValue = String(item.dataKey ?? name);
 
 							let displayValue: React.ReactNode = item.value;
 							let displayName: React.ReactNode = name;
@@ -162,9 +188,10 @@ const ChartTooltipContent = React.forwardRef<
 							if (formatter) {
 								const formatted = formatter(
 									item.value,
-									item.dataKey ?? name,
+									nameValue,
 									item,
 									payload.indexOf(item),
+									payload,
 								);
 								if (Array.isArray(formatted)) {
 									[displayValue, displayName] = formatted;
@@ -208,13 +235,23 @@ ChartTooltipContent.displayName = 'ChartTooltip';
 
 const ChartLegend = RechartsPrimitive.Legend;
 
+type ChartLegendPayload = {
+	dataKey?: string | number;
+	value?: string | number;
+	color?: string;
+	type?: string;
+};
+
+type ChartLegendContentProps = React.ComponentProps<'div'> & {
+	payload?: ChartLegendPayload[];
+	verticalAlign?: 'top' | 'bottom';
+	hideIcon?: boolean;
+	nameKey?: string;
+};
+
 const ChartLegendContent = React.forwardRef<
 	HTMLDivElement,
-	React.ComponentProps<'div'> &
-		Pick<RechartsPrimitive.LegendProps, 'payload' | 'verticalAlign'> & {
-			hideIcon?: boolean;
-			nameKey?: string;
-		}
+	ChartLegendContentProps
 >(
 	(
 		{ className, hideIcon = false, payload, verticalAlign = 'bottom', nameKey },

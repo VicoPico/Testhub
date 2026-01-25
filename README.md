@@ -10,6 +10,8 @@ Testhub is a fast, developer-focused platform to ingest, store, and explore auto
 - Real-time test result tracking and filtering
 - Tests explorer with history and status breakdowns
 - Analytics dashboards with tables and charts (time series, slowest tests, most failing tests)
+- Chart view toggles (tabular vs charts, bars vs stacked area)
+- shadcn-styled chart components with themed tooltips/legends
 - PostgreSQL-backed persistent storage with optimized queries
 - Type-safe API contracts with OpenAPI specification
 - Modern React SPA with shadcn/ui components

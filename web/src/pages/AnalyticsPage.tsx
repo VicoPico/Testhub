@@ -18,7 +18,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+	ChartContainer,
+	ChartLegend,
+	ChartLegendContent,
+	ChartTooltip,
+	ChartTooltipContent,
+	type ChartConfig,
+} from '@/components/ui/chart';
 import {
 	Area,
 	AreaChart,
@@ -28,15 +36,6 @@ import {
 	XAxis,
 	YAxis,
 } from 'recharts';
-import {
-	ChartContainer,
-	ChartLegend,
-	ChartLegendContent,
-	ChartTooltip,
-	ChartTooltipContent,
-	type ChartConfig,
-} from '@/components/ui/chart';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
 	getAnalyticsMostFailingTests,
 	getAnalyticsSlowestTests,
@@ -70,18 +69,41 @@ function formatDuration(value: number | string | null | undefined) {
 	return `${Math.round(n)}ms`;
 }
 
+function normalizeValue(value: unknown): number | string | null | undefined {
+	if (Array.isArray(value)) return value[0];
+	return value as number | string | null | undefined;
+}
+
 function truncateLabel(label: string) {
 	if (label.length <= 18) return label;
 	return `${label.slice(0, 16)}…`;
 }
 
 const chartConfig: ChartConfig = {
-	passed: { label: 'Passed', color: 'var(--chart-2-65)' },
-	failed: { label: 'Failed', color: 'var(--chart-5-65)' },
-	error: { label: 'Error', color: 'var(--chart-4-65)' },
-	skipped: { label: 'Skipped', color: 'var(--chart-3-65)' },
-	avg: { label: 'Avg (ms)', color: 'var(--chart-1-65)' },
-	max: { label: 'Max (ms)', color: 'var(--chart-3-65)' },
+	passed: {
+		label: 'Passed',
+		theme: { light: 'var(--chart-2-40)', dark: 'var(--chart-2-40)' },
+	},
+	failed: {
+		label: 'Failed',
+		theme: { light: 'var(--chart-5-40)', dark: 'var(--chart-5-40)' },
+	},
+	error: {
+		label: 'Error',
+		theme: { light: 'var(--chart-4-40)', dark: 'var(--chart-4-40)' },
+	},
+	skipped: {
+		label: 'Skipped',
+		theme: { light: 'var(--chart-3-40)', dark: 'var(--chart-3-40)' },
+	},
+	avg: {
+		label: 'Avg (ms)',
+		theme: { light: 'var(--chart-1-40)', dark: 'var(--chart-1-40)' },
+	},
+	max: {
+		label: 'Max (ms)',
+		theme: { light: 'var(--chart-3-40)', dark: 'var(--chart-3-40)' },
+	},
 };
 
 export function AnalyticsPage() {
@@ -190,9 +212,10 @@ export function AnalyticsPage() {
 				setTimeseries(ts.items ?? []);
 				setSlowest(slow.items ?? []);
 				setMostFailing(failing.items ?? []);
-			} catch (e: any) {
-				setLastStatus(e?.status ?? null);
-				setError(e?.message ?? 'Failed to load analytics');
+			} catch (e: unknown) {
+				const err = e as { status?: number; message?: string } | null;
+				setLastStatus(err?.status ?? null);
+				setError(err?.message ?? 'Failed to load analytics');
 			} finally {
 				setLoading(false);
 				setRefreshing(false);
@@ -232,8 +255,7 @@ export function AnalyticsPage() {
 			<PageError
 				title='Failed to load analytics'
 				message={error}
-				actionLabel='Retry'
-				onAction={() => load()}
+				onRetry={() => load()}
 			/>
 		);
 	}
@@ -353,6 +375,7 @@ export function AnalyticsPage() {
 												data={timeseriesChartData}
 												margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
 												<CartesianGrid
+													vertical={false}
 													strokeDasharray='3 3'
 													stroke='var(--border)'
 													strokeOpacity={0.4}
@@ -367,6 +390,7 @@ export function AnalyticsPage() {
 													}}
 													tickLine={false}
 													axisLine={false}
+													tickMargin={8}
 													minTickGap={16}
 													tickFormatter={formatDay}
 												/>
@@ -377,25 +401,28 @@ export function AnalyticsPage() {
 													}}
 													tickLine={false}
 													axisLine={false}
+													tickMargin={8}
 													tickFormatter={(v) => formatCount(v)}
 												/>
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
 															labelFormatter={(label) => formatDay(label)}
-															formatter={(value, name) =>
-																name === 'avg' || name === 'max'
-																	? formatDuration(value)
-																	: formatCount(value)
-															}
+															formatter={(value, name) => {
+																const normalized = normalizeValue(value);
+																return name === 'avg' || name === 'max'
+																	? formatDuration(normalized)
+																	: formatCount(normalized);
+															}}
 														/>
 													}
+													cursor={false}
 												/>
 												<ChartLegend content={<ChartLegendContent />} />
 												<Bar
 													dataKey='passed'
 													stackId='a'
-													fill='var(--chart-2-40)'
+													fill='var(--color-passed)'
 													stroke='var(--chart-2-65)'
 													strokeWidth={1}
 													radius={[3, 3, 0, 0]}
@@ -403,21 +430,21 @@ export function AnalyticsPage() {
 												<Bar
 													dataKey='failed'
 													stackId='a'
-													fill='var(--chart-5-40)'
+													fill='var(--color-failed)'
 													stroke='var(--chart-5-65)'
 													strokeWidth={1}
 												/>
 												<Bar
 													dataKey='error'
 													stackId='a'
-													fill='var(--chart-4-40)'
+													fill='var(--color-error)'
 													stroke='var(--chart-4-65)'
 													strokeWidth={1}
 												/>
 												<Bar
 													dataKey='skipped'
 													stackId='a'
-													fill='var(--chart-3-40)'
+													fill='var(--color-skipped)'
 													stroke='var(--chart-3-65)'
 													strokeWidth={1}
 												/>
@@ -427,6 +454,7 @@ export function AnalyticsPage() {
 												data={timeseriesChartData}
 												margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
 												<CartesianGrid
+													vertical={false}
 													strokeDasharray='3 3'
 													stroke='var(--border)'
 													strokeOpacity={0.4}
@@ -441,7 +469,8 @@ export function AnalyticsPage() {
 													}}
 													tickLine={false}
 													axisLine={false}
-													minTickGap={16}
+													minTickGap={24}
+													tickMargin={8}
 													tickFormatter={formatDay}
 												/>
 												<YAxis
@@ -451,25 +480,98 @@ export function AnalyticsPage() {
 													}}
 													tickLine={false}
 													axisLine={false}
+													tickMargin={8}
 													tickFormatter={(v) => formatCount(v)}
 												/>
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
 															labelFormatter={(label) => formatDay(label)}
-															formatter={(value, name) =>
-																name === 'avg' || name === 'max'
-																	? formatDuration(value)
-																	: formatCount(value)
-															}
+															formatter={(value, name) => {
+																const normalized = normalizeValue(value);
+																return name === 'avg' || name === 'max'
+																	? formatDuration(normalized)
+																	: formatCount(normalized);
+															}}
 														/>
 													}
+													cursor={false}
 												/>
 												<ChartLegend content={<ChartLegendContent />} />
+												<defs>
+													<linearGradient
+														id='fillPassed'
+														x1='0'
+														y1='0'
+														x2='0'
+														y2='1'>
+														<stop
+															offset='5%'
+															stopColor='var(--color-passed)'
+															stopOpacity={0.5}
+														/>
+														<stop
+															offset='95%'
+															stopColor='var(--color-passed)'
+															stopOpacity={0.05}
+														/>
+													</linearGradient>
+													<linearGradient
+														id='fillFailed'
+														x1='0'
+														y1='0'
+														x2='0'
+														y2='1'>
+														<stop
+															offset='5%'
+															stopColor='var(--color-failed)'
+															stopOpacity={0.5}
+														/>
+														<stop
+															offset='95%'
+															stopColor='var(--color-failed)'
+															stopOpacity={0.05}
+														/>
+													</linearGradient>
+													<linearGradient
+														id='fillError'
+														x1='0'
+														y1='0'
+														x2='0'
+														y2='1'>
+														<stop
+															offset='5%'
+															stopColor='var(--color-error)'
+															stopOpacity={0.5}
+														/>
+														<stop
+															offset='95%'
+															stopColor='var(--color-error)'
+															stopOpacity={0.05}
+														/>
+													</linearGradient>
+													<linearGradient
+														id='fillSkipped'
+														x1='0'
+														y1='0'
+														x2='0'
+														y2='1'>
+														<stop
+															offset='5%'
+															stopColor='var(--color-skipped)'
+															stopOpacity={0.5}
+														/>
+														<stop
+															offset='95%'
+															stopColor='var(--color-skipped)'
+															stopOpacity={0.05}
+														/>
+													</linearGradient>
+												</defs>
 												<Area
 													dataKey='passed'
 													stackId='a'
-													fill='var(--chart-2-40)'
+													fill='url(#fillPassed)'
 													stroke='var(--chart-2-65)'
 													strokeWidth={1}
 													type='monotone'
@@ -477,7 +579,7 @@ export function AnalyticsPage() {
 												<Area
 													dataKey='failed'
 													stackId='a'
-													fill='var(--chart-5-40)'
+													fill='url(#fillFailed)'
 													stroke='var(--chart-5-65)'
 													strokeWidth={1}
 													type='monotone'
@@ -485,7 +587,7 @@ export function AnalyticsPage() {
 												<Area
 													dataKey='error'
 													stackId='a'
-													fill='var(--chart-4-40)'
+													fill='url(#fillError)'
 													stroke='var(--chart-4-65)'
 													strokeWidth={1}
 													type='monotone'
@@ -493,7 +595,7 @@ export function AnalyticsPage() {
 												<Area
 													dataKey='skipped'
 													stackId='a'
-													fill='var(--chart-3-40)'
+													fill='url(#fillSkipped)'
 													stroke='var(--chart-3-65)'
 													strokeWidth={1}
 													type='monotone'
@@ -564,6 +666,7 @@ export function AnalyticsPage() {
 												layout='vertical'
 												margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
 												<CartesianGrid
+													vertical={false}
 													strokeDasharray='3 3'
 													stroke='var(--border)'
 													strokeOpacity={0.4}
@@ -576,6 +679,7 @@ export function AnalyticsPage() {
 													}}
 													tickLine={false}
 													axisLine={false}
+													tickMargin={8}
 													tickFormatter={(v) => formatDuration(v)}
 												/>
 												<YAxis
@@ -589,22 +693,26 @@ export function AnalyticsPage() {
 													tickFormatter={(v) => truncateLabel(String(v))}
 													axisLine={false}
 													tickLine={false}
+													tickMargin={8}
 												/>
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
-															formatter={(value, name) =>
-																name === 'avg' || name === 'max'
-																	? formatDuration(value)
-																	: formatCount(value)
-															}
+															labelFormatter={(label) => formatDay(label)}
+															formatter={(value, name) => {
+																const normalized = normalizeValue(value);
+																return name === 'avg' || name === 'max'
+																	? formatDuration(normalized)
+																	: formatCount(normalized);
+															}}
 														/>
 													}
+													cursor={false}
 												/>
 												<ChartLegend content={<ChartLegendContent />} />
 												<Bar
 													dataKey='avg'
-													fill='var(--chart-1-40)'
+													fill='var(--color-avg)'
 													stroke='var(--chart-1-65)'
 													strokeWidth={1}
 													name='Avg (ms)'
@@ -612,7 +720,7 @@ export function AnalyticsPage() {
 												/>
 												<Bar
 													dataKey='max'
-													fill='var(--chart-3-40)'
+													fill='var(--color-max)'
 													stroke='var(--chart-3-65)'
 													strokeWidth={1}
 													name='Max (ms)'
@@ -677,6 +785,7 @@ export function AnalyticsPage() {
 												layout='vertical'
 												margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
 												<CartesianGrid
+													vertical={false}
 													strokeDasharray='3 3'
 													stroke='var(--border)'
 													strokeOpacity={0.4}
@@ -689,6 +798,7 @@ export function AnalyticsPage() {
 													}}
 													tickLine={false}
 													axisLine={false}
+													tickMargin={8}
 													tickFormatter={(v) => formatCount(v)}
 												/>
 												<YAxis
@@ -702,19 +812,23 @@ export function AnalyticsPage() {
 													tickFormatter={(v) => truncateLabel(String(v))}
 													axisLine={false}
 													tickLine={false}
+													tickMargin={8}
 												/>
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
-															formatter={(value) => formatCount(value)}
+															formatter={(value) =>
+																formatCount(normalizeValue(value))
+															}
 														/>
 													}
+													cursor={false}
 												/>
 												<ChartLegend content={<ChartLegendContent />} />
 												<Bar
 													dataKey='failed'
 													stackId='a'
-													fill='var(--chart-5-40)'
+													fill='var(--color-failed)'
 													stroke='var(--chart-5-65)'
 													strokeWidth={1}
 													name='Failed'
@@ -723,7 +837,7 @@ export function AnalyticsPage() {
 												<Bar
 													dataKey='error'
 													stackId='a'
-													fill='var(--chart-4-40)'
+													fill='var(--color-error)'
 													stroke='var(--chart-4-65)'
 													strokeWidth={1}
 													name='Error'
