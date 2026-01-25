@@ -14,14 +14,15 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import {
+	Area,
+	AreaChart,
 	Bar,
 	BarChart,
 	CartesianGrid,
 	Legend,
-	Line,
-	LineChart,
 	ResponsiveContainer,
 	Tooltip,
+	type TooltipProps,
 	XAxis,
 	YAxis,
 } from 'recharts';
@@ -41,6 +42,62 @@ function ms(n: number | null | undefined) {
 	return `${Math.round(n)}ms`;
 }
 
+const compactNumber = new Intl.NumberFormat('en-US', {
+	notation: 'compact',
+	maximumFractionDigits: 1,
+});
+
+function formatCount(value: number | string | null | undefined) {
+	const n = typeof value === 'number' ? value : Number(value ?? 0);
+	return Number.isFinite(n) ? compactNumber.format(n) : '0';
+}
+
+function formatDuration(value: number | string | null | undefined) {
+	const n = typeof value === 'number' ? value : Number(value ?? 0);
+	if (!Number.isFinite(n)) return '—';
+	if (n >= 1000) return `${(n / 1000).toFixed(1)}s`;
+	return `${Math.round(n)}ms`;
+}
+
+function truncateLabel(label: string) {
+	if (label.length <= 18) return label;
+	return `${label.slice(0, 16)}…`;
+}
+
+function ChartTooltip({
+	active,
+	payload,
+	label,
+}: TooltipProps<number, string>) {
+	if (!active || !payload?.length) return null;
+
+	return (
+		<div className='rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md'>
+			<div className='mb-1 text-[11px] text-muted-foreground'>{label}</div>
+			<div className='space-y-1'>
+				{payload.map((entry) => (
+					<div
+						key={String(entry.dataKey)}
+						className='flex items-center justify-between gap-4'>
+						<div className='flex items-center gap-2'>
+							<span
+								className='h-2 w-2 rounded-full'
+								style={{ background: entry.color }}
+							/>
+							<span>{entry.name ?? entry.dataKey}</span>
+						</div>
+						<span className='font-mono'>
+							{entry.dataKey === 'avg' || entry.dataKey === 'max'
+								? formatDuration(entry.value)
+								: formatCount(entry.value)}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
 export function AnalyticsPage() {
 	const { projectId } = useParams();
 	usePageTitle('Analytics');
@@ -51,6 +108,7 @@ export function AnalyticsPage() {
 	const [days, setDays] = useState<number>(7);
 	const limit = 20;
 	const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
+	const [timeseriesView, setTimeseriesView] = useState<'bar' | 'area'>('bar');
 
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
@@ -238,10 +296,36 @@ export function AnalyticsPage() {
 			<div className='grid gap-6'>
 				<section className='rounded-lg border bg-card p-4'>
 					<div className='flex items-center justify-between'>
-						<h2 className='text-base font-semibold'>Failures over time</h2>
-						<p className='text-xs text-muted-foreground'>
-							Daily totals by status
-						</p>
+						<div>
+							<h2 className='text-base font-semibold'>Failures over time</h2>
+							<p className='text-xs text-muted-foreground'>
+								Daily totals by status
+							</p>
+						</div>
+						{viewMode === 'chart' ? (
+							<div className='flex items-center gap-1 rounded-md border bg-card p-1'>
+								<Button
+									size='sm'
+									className={cn(
+										'h-7 px-2',
+										timeseriesView === 'bar' ? '' : 'bg-transparent',
+									)}
+									variant={timeseriesView === 'bar' ? 'default' : 'outline'}
+									onClick={() => setTimeseriesView('bar')}>
+									Bars
+								</Button>
+								<Button
+									size='sm'
+									className={cn(
+										'h-7 px-2',
+										timeseriesView === 'area' ? '' : 'bg-transparent',
+									)}
+									variant={timeseriesView === 'area' ? 'default' : 'outline'}
+									onClick={() => setTimeseriesView('area')}>
+									Stacked area
+								</Button>
+							</div>
+						) : null}
 					</div>
 					{viewMode === 'table' ? (
 						<div className='mt-3 overflow-x-auto'>
@@ -277,25 +361,138 @@ export function AnalyticsPage() {
 							</div>
 						</div>
 					) : (
-						<div className='mt-4 h-64 rounded-md border p-3'>
+						<div className='mt-4 h-64 rounded-md border bg-muted/10 p-3'>
 							{timeseries.length ? (
 								<ResponsiveContainer width='100%' height='100%'>
-									<BarChart
-										data={timeseriesChartData}
-										margin={{ left: 8, right: 8 }}>
-										<CartesianGrid strokeDasharray='3 3' />
-										<XAxis dataKey='day' tick={{ fontSize: 10 }} />
-										<YAxis tick={{ fontSize: 10 }} />
-										<Tooltip />
-										<Legend />
-										<Bar dataKey='passed' stackId='a' fill='var(--chart-2)' />
-										<Bar dataKey='failed' stackId='a' fill='var(--chart-5)' />
-										<Bar dataKey='error' stackId='a' fill='var(--chart-4)' />
-										<Bar dataKey='skipped' stackId='a' fill='var(--chart-3)' />
-									</BarChart>
+									{timeseriesView === 'bar' ? (
+										<BarChart
+											data={timeseriesChartData}
+											margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+											<CartesianGrid
+												strokeDasharray='3 3'
+												stroke='var(--border)'
+												strokeOpacity={0.4}
+											/>
+											<XAxis
+												dataKey='day'
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
+												minTickGap={16}
+											/>
+											<YAxis
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
+												tickFormatter={(v) => formatCount(v)}
+											/>
+											<Tooltip content={<ChartTooltip />} />
+											<Legend
+												verticalAlign='top'
+												align='right'
+												iconType='circle'
+												iconSize={8}
+												wrapperStyle={{ paddingBottom: 8 }}
+											/>
+											<Bar
+												dataKey='passed'
+												stackId='a'
+												fill='var(--chart-2-40)'
+												stroke='var(--chart-2-65)'
+												strokeWidth={1}
+												radius={[3, 3, 0, 0]}
+											/>
+											<Bar
+												dataKey='failed'
+												stackId='a'
+												fill='var(--chart-5-40)'
+												stroke='var(--chart-5-65)'
+												strokeWidth={1}
+											/>
+											<Bar
+												dataKey='error'
+												stackId='a'
+												fill='var(--chart-4-40)'
+												stroke='var(--chart-4-65)'
+												strokeWidth={1}
+											/>
+											<Bar
+												dataKey='skipped'
+												stackId='a'
+												fill='var(--chart-3-40)'
+												stroke='var(--chart-3-65)'
+												strokeWidth={1}
+											/>
+										</BarChart>
+									) : (
+										<AreaChart
+											data={timeseriesChartData}
+											margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+											<CartesianGrid
+												strokeDasharray='3 3'
+												stroke='var(--border)'
+												strokeOpacity={0.4}
+											/>
+											<XAxis
+												dataKey='day'
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
+												minTickGap={16}
+											/>
+											<YAxis
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
+												tickFormatter={(v) => formatCount(v)}
+											/>
+											<Tooltip content={<ChartTooltip />} />
+											<Legend
+												verticalAlign='top'
+												align='right'
+												iconType='circle'
+												iconSize={8}
+												wrapperStyle={{ paddingBottom: 8 }}
+											/>
+											<Area
+												dataKey='passed'
+												stackId='a'
+												fill='var(--chart-2-40)'
+												stroke='var(--chart-2-65)'
+												strokeWidth={1}
+												type='monotone'
+											/>
+											<Area
+												dataKey='failed'
+												stackId='a'
+												fill='var(--chart-5-40)'
+												stroke='var(--chart-5-65)'
+												strokeWidth={1}
+												type='monotone'
+											/>
+											<Area
+												dataKey='error'
+												stackId='a'
+												fill='var(--chart-4-40)'
+												stroke='var(--chart-4-65)'
+												strokeWidth={1}
+												type='monotone'
+											/>
+											<Area
+												dataKey='skipped'
+												stackId='a'
+												fill='var(--chart-3-40)'
+												stroke='var(--chart-3-65)'
+												strokeWidth={1}
+												type='monotone'
+											/>
+										</AreaChart>
+									)}
 								</ResponsiveContainer>
 							) : (
-								<div className='text-sm text-muted-foreground'>No data.</div>
+								<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
+									No data
+								</div>
 							)}
 						</div>
 					)}
@@ -339,38 +536,62 @@ export function AnalyticsPage() {
 								</div>
 							</div>
 						) : (
-							<div className='mt-4 h-64 rounded-md border p-3'>
+							<div className='mt-4 h-64 rounded-md border bg-muted/10 p-3'>
 								{slowestChartData.length ? (
 									<ResponsiveContainer width='100%' height='100%'>
 										<BarChart
 											data={slowestChartData}
 											layout='vertical'
-											margin={{ left: 16, right: 16 }}>
-											<CartesianGrid strokeDasharray='3 3' />
-											<XAxis type='number' tick={{ fontSize: 10 }} />
+											margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
+											<CartesianGrid
+												strokeDasharray='3 3'
+												stroke='var(--border)'
+												strokeOpacity={0.4}
+											/>
+											<XAxis
+												type='number'
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
+												tickFormatter={(v) => formatDuration(v)}
+											/>
 											<YAxis
 												dataKey='name'
 												type='category'
 												width={140}
-												tick={{ fontSize: 10 }}
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												tickFormatter={(v) => truncateLabel(String(v))}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
 											/>
-											<Tooltip />
-											<Legend />
+											<Tooltip content={<ChartTooltip />} />
+											<Legend
+												verticalAlign='top'
+												align='right'
+												iconType='circle'
+												iconSize={8}
+												wrapperStyle={{ paddingBottom: 8 }}
+											/>
 											<Bar
 												dataKey='avg'
-												fill='var(--chart-1)'
+												fill='var(--chart-1-40)'
+												stroke='var(--chart-1-65)'
+												strokeWidth={1}
 												name='Avg (ms)'
+												radius={[0, 4, 4, 0]}
 											/>
 											<Bar
 												dataKey='max'
-												fill='var(--chart-3)'
+												fill='var(--chart-3-40)'
+												stroke='var(--chart-3-65)'
+												strokeWidth={1}
 												name='Max (ms)'
 											/>
 										</BarChart>
 									</ResponsiveContainer>
 								) : (
-									<div className='text-sm text-muted-foreground'>
-										No slow tests yet.
+									<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
+										No slow tests yet
 									</div>
 								)}
 							</div>
@@ -414,40 +635,64 @@ export function AnalyticsPage() {
 								</div>
 							</div>
 						) : (
-							<div className='mt-4 h-64 rounded-md border p-3'>
+							<div className='mt-4 h-64 rounded-md border bg-muted/10 p-3'>
 								{mostFailingChartData.length ? (
 									<ResponsiveContainer width='100%' height='100%'>
 										<BarChart
 											data={mostFailingChartData}
 											layout='vertical'
-											margin={{ left: 16, right: 16 }}>
-											<CartesianGrid strokeDasharray='3 3' />
-											<XAxis type='number' tick={{ fontSize: 10 }} />
+											margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
+											<CartesianGrid
+												strokeDasharray='3 3'
+												stroke='var(--border)'
+												strokeOpacity={0.4}
+											/>
+											<XAxis
+												type='number'
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
+												tickFormatter={(v) => formatCount(v)}
+											/>
 											<YAxis
 												dataKey='name'
 												type='category'
 												width={140}
-												tick={{ fontSize: 10 }}
+												tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+												tickFormatter={(v) => truncateLabel(String(v))}
+												axisLine={{ stroke: 'var(--border)' }}
+												tickLine={{ stroke: 'var(--border)' }}
 											/>
-											<Tooltip />
-											<Legend />
+											<Tooltip content={<ChartTooltip />} />
+											<Legend
+												verticalAlign='top'
+												align='right'
+												iconType='circle'
+												iconSize={8}
+												wrapperStyle={{ paddingBottom: 8 }}
+											/>
 											<Bar
 												dataKey='failed'
 												stackId='a'
-												fill='var(--chart-5)'
+												fill='var(--chart-5-40)'
+												stroke='var(--chart-5-65)'
+												strokeWidth={1}
 												name='Failed'
+												radius={[0, 4, 4, 0]}
 											/>
 											<Bar
 												dataKey='error'
 												stackId='a'
-												fill='var(--chart-4)'
+												fill='var(--chart-4-40)'
+												stroke='var(--chart-4-65)'
+												strokeWidth={1}
 												name='Error'
 											/>
 										</BarChart>
 									</ResponsiveContainer>
 								) : (
-									<div className='text-sm text-muted-foreground'>
-										No failing tests yet.
+									<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
+										No failing tests yet
 									</div>
 								)}
 							</div>

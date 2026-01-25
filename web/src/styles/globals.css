@@ -10,7 +10,13 @@
 @tailwind utilities;
 
 :root {
-	font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+	font-family:
+		system-ui,
+		-apple-system,
+		Segoe UI,
+		Roboto,
+		Arial,
+		sans-serif;
 	color-scheme: light;
 	--radius: 0.625rem;
 	--background: oklch(1 0 0);
@@ -36,6 +42,16 @@
 	--chart-3: oklch(0.398 0.07 227.392);
 	--chart-4: oklch(0.828 0.189 84.429);
 	--chart-5: oklch(0.769 0.188 70.08);
+	--chart-1-65: oklch(0.646 0.222 41.116 / 0.65);
+	--chart-2-65: oklch(0.6 0.118 184.704 / 0.65);
+	--chart-3-65: oklch(0.398 0.07 227.392 / 0.65);
+	--chart-4-65: oklch(0.828 0.189 84.429 / 0.65);
+	--chart-5-65: oklch(0.769 0.188 70.08 / 0.65);
+	--chart-1-40: oklch(0.646 0.222 41.116 / 0.4);
+	--chart-2-40: oklch(0.6 0.118 184.704 / 0.4);
+	--chart-3-40: oklch(0.398 0.07 227.392 / 0.4);
+	--chart-4-40: oklch(0.828 0.189 84.429 / 0.4);
+	--chart-5-40: oklch(0.769 0.188 70.08 / 0.4);
 	--sidebar: oklch(0.984 0.003 247.858);
 	--sidebar-foreground: oklch(0.129 0.042 264.695);
 	--sidebar-primary: oklch(0.208 0.042 265.755);
@@ -115,6 +131,16 @@ body {
 	--chart-3: oklch(0.769 0.188 70.08);
 	--chart-4: oklch(0.627 0.265 303.9);
 	--chart-5: oklch(0.645 0.246 16.439);
+	--chart-1-65: oklch(0.488 0.243 264.376 / 0.65);
+	--chart-2-65: oklch(0.696 0.17 162.48 / 0.65);
+	--chart-3-65: oklch(0.769 0.188 70.08 / 0.65);
+	--chart-4-65: oklch(0.627 0.265 303.9 / 0.65);
+	--chart-5-65: oklch(0.645 0.246 16.439 / 0.65);
+	--chart-1-40: oklch(0.488 0.243 264.376 / 0.4);
+	--chart-2-40: oklch(0.696 0.17 162.48 / 0.4);
+	--chart-3-40: oklch(0.769 0.188 70.08 / 0.4);
+	--chart-4-40: oklch(0.627 0.265 303.9 / 0.4);
+	--chart-5-40: oklch(0.645 0.246 16.439 / 0.4);
 	--sidebar: oklch(0.208 0.042 265.755);
 	--sidebar-foreground: oklch(0.984 0.003 247.858);
 	--sidebar-primary: oklch(0.488 0.243 264.376);
