@@ -8,9 +8,12 @@ Testhub is a fast, developer-focused platform to ingest, store, and explore auto
 - Batch ingestion of test results with automatic test case management
 - Organization-scoped API key authentication
 - Real-time test result tracking and filtering
+- Tests explorer with history and status breakdowns
+- Analytics dashboards with tables and charts (time series, slowest tests, most failing tests)
 - PostgreSQL-backed persistent storage with optimized queries
 - Type-safe API contracts with OpenAPI specification
 - Modern React SPA with shadcn/ui components
+- Recharts-based data visualizations
 
 ## Stack
 
@@ -28,6 +31,7 @@ Testhub is a fast, developer-focused platform to ingest, store, and explore auto
 - Vite
 - TailwindCSS 4
 - shadcn/ui
+- Recharts
 - React Router 7
 
 ---
@@ -130,6 +134,17 @@ The test script validates:
 - `GET /projects/:projectId/runs/:runId/results` - List test results
 - `POST /projects/:projectId/runs/:runId/results/batch` - Batch ingest test results
 
+### Tests
+
+- `GET /projects/:projectId/tests` - List test cases with last status
+- `GET /projects/:projectId/tests/:testCaseId/history` - Test execution history
+
+### Analytics
+
+- `GET /projects/:projectId/analytics/timeseries` - Failures over time
+- `GET /projects/:projectId/analytics/slowest-tests` - Slowest tests (avg/max duration)
+- `GET /projects/:projectId/analytics/most-failing-tests` - Most failing tests
+
 All protected endpoints require the `x-api-key` header.
 
 ---
@@ -215,6 +230,7 @@ All entities use cascade deletes to maintain referential integrity.
 - Filters live in the URL for shareability
 - Loading skeletons instead of blocking states
 - Type-safe API client generated from OpenAPI spec
+- Charts use shared UI primitives for consistent styling
 
 ### Performance Rules
 
