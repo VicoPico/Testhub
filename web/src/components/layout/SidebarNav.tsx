@@ -58,7 +58,11 @@ export function SidebarNav(props: SidebarNavProps) {
 				{/* Main nav (takes remaining height) */}
 				<div className='flex-1 flex flex-col'>
 					{/* Workspace-level nav */}
-					<div className='mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground'>
+					<div
+						className={[
+							'mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground',
+							collapsed ? 'opacity-0 select-none' : '',
+						].join(' ')}>
 						Workspace
 					</div>
 
@@ -77,7 +81,11 @@ export function SidebarNav(props: SidebarNavProps) {
 						<>
 							<Separator className='my-3' />
 
-							<div className='mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground'>
+							<div
+								className={[
+									'mb-3 px-2 text-xs font-semibold tracking-tight text-muted-foreground',
+									collapsed ? 'opacity-0 select-none' : '',
+								].join(' ')}>
 								Project
 							</div>
 
@@ -151,7 +159,7 @@ function SidebarLink(props: {
 			className={({ isActive }) =>
 				[
 					'group flex h-10 w-full items-center rounded-md text-sm font-medium transition-colors',
-					props.collapsed ? 'justify-center px-2' : 'px-3 gap-2',
+					props.collapsed ? 'w-10 justify-center px-0 mx-auto' : 'px-3 gap-2',
 					isActive
 						? 'bg-muted text-foreground'
 						: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',

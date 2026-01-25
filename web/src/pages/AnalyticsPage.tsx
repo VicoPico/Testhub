@@ -114,7 +114,7 @@ export function AnalyticsPage() {
 	const canLoad = Boolean(apiKey);
 
 	const [days, setDays] = useState<number>(7);
-	const limit = 20;
+	const limit = 5;
 	const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
 	const [timeseriesView, setTimeseriesView] = useState<'bar' | 'area'>('bar');
 
@@ -333,7 +333,7 @@ export function AnalyticsPage() {
 					<CardContent>
 						{viewMode === 'table' ? (
 							<div className='overflow-x-auto'>
-								<div className='min-w-[640px] divide-y rounded-md border'>
+								<div className='max-h-[240px] min-w-[640px] overflow-y-auto divide-y rounded-md border'>
 									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
 										<div>Day</div>
 										<div className='text-right'>Passed</div>
@@ -407,7 +407,9 @@ export function AnalyticsPage() {
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
-															labelFormatter={(label) => formatDay(label)}
+															labelFormatter={(label) =>
+																formatDay(label as number | string)
+															}
 															formatter={(value, name) => {
 																const normalized = normalizeValue(value);
 																return name === 'avg' || name === 'max'
@@ -486,7 +488,9 @@ export function AnalyticsPage() {
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
-															labelFormatter={(label) => formatDay(label)}
+															labelFormatter={(label) =>
+																formatDay(label as number | string)
+															}
 															formatter={(value, name) => {
 																const normalized = normalizeValue(value);
 																return name === 'avg' || name === 'max'
@@ -622,7 +626,7 @@ export function AnalyticsPage() {
 						<CardContent>
 							{viewMode === 'table' ? (
 								<div className='overflow-x-auto'>
-									<div className='min-w-[520px] divide-y rounded-md border'>
+									<div className='max-h-[240px] min-w-[520px] overflow-y-auto divide-y rounded-md border'>
 										<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
 											<div className='col-span-2'>Test</div>
 											<div className='col-span-2'>Suite</div>
@@ -698,7 +702,9 @@ export function AnalyticsPage() {
 												<ChartTooltip
 													content={
 														<ChartTooltipContent
-															labelFormatter={(label) => formatDay(label)}
+															labelFormatter={(label) =>
+																formatDay(label as number | string)
+															}
 															formatter={(value, name) => {
 																const normalized = normalizeValue(value);
 																return name === 'avg' || name === 'max'
@@ -745,7 +751,7 @@ export function AnalyticsPage() {
 						<CardContent>
 							{viewMode === 'table' ? (
 								<div className='overflow-x-auto'>
-									<div className='min-w-[520px] divide-y rounded-md border'>
+									<div className='max-h-[240px] min-w-[520px] overflow-y-auto divide-y rounded-md border'>
 										<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
 											<div className='col-span-2'>Test</div>
 											<div className='col-span-2'>Suite</div>

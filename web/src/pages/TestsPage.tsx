@@ -37,11 +37,6 @@ function testStatusVariant(
 	return 'secondary';
 }
 
-function testStatusLabel(status: StatusFilter) {
-	if (status === 'ALL') return 'All';
-	return status;
-}
-
 export function TestsPage() {
 	const { projectId } = useParams();
 	const pid = projectId ?? 'demo';
@@ -274,10 +269,14 @@ export function TestsPage() {
 							<div className='col-span-2 text-right'>Last seen</div>
 						</div>
 
-						<div className='divide-y'>
+						<div className='max-h-[200px] divide-y overflow-y-auto'>
 							{items.map((t) => {
 								const isSelected = selected?.id === t.id;
-								const last = (t as any).lastStatus as TestStatus | null;
+								const last = (
+									t as TestCaseListItem & {
+										lastStatus?: TestStatus | null;
+									}
+								).lastStatus;
 								return (
 									<div
 										key={t.id}

@@ -23,7 +23,7 @@ function formatDate(iso: string) {
 }
 
 function statusVariant(
-	status: RunListItem['status']
+	status: RunListItem['status'],
 ): 'default' | 'secondary' | 'destructive' {
 	if (status === 'FAILED') return 'destructive';
 	if (status === 'COMPLETED') return 'default';
@@ -52,7 +52,7 @@ export function RunsPage() {
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
 
 	// Tune this as you like (typed!)
-	const limit: NonNullable<ListRunsQuery>['limit'] = 25;
+	const limit: NonNullable<ListRunsQuery>['limit'] = 10;
 
 	const refresh = React.useCallback(async () => {
 		// If not authed, keep UI clean + stop here.
@@ -134,14 +134,14 @@ export function RunsPage() {
 
 		const confirmed = window.confirm(
 			`Are you sure you want to delete this run?\n\n` +
-			`Run ID: ${run.id}\n` +
-			`Created: ${formatDate(run.createdAt)}\n` +
-			`Status: ${run.status}\n` +
-			`Total Tests: ${run.totalCount}\n\n` +
-			`⚠️ WARNING: This will permanently delete:\n` +
-			`• This test run\n` +
-			`• All ${run.totalCount} test results in this run\n\n` +
-			`This action cannot be undone.`
+				`Run ID: ${run.id}\n` +
+				`Created: ${formatDate(run.createdAt)}\n` +
+				`Status: ${run.status}\n` +
+				`Total Tests: ${run.totalCount}\n\n` +
+				`⚠️ WARNING: This will permanently delete:\n` +
+				`• This test run\n` +
+				`• All ${run.totalCount} test results in this run\n\n` +
+				`This action cannot be undone.`,
 		);
 
 		if (!confirmed) return;
@@ -230,7 +230,7 @@ export function RunsPage() {
 							<div className='col-span-2 text-right'>Actions</div>
 						</div>
 
-						<div className='divide-y'>
+						<div className='max-h-[520px] divide-y overflow-y-auto'>
 							{items.map((r) => (
 								<div
 									key={r.id}
