@@ -38,7 +38,7 @@ export function AppShell() {
 		<div className='min-h-screen'>
 			<TopBar projectId={pid} />
 
-			<div className='flex'>
+			<div className='flex h-[calc(100vh-56px)]'>
 				<aside
 					className={[
 						'hidden md:block border-r h-[calc(100vh-56px)] transition-all duration-200',
@@ -47,7 +47,7 @@ export function AppShell() {
 					<SidebarNav projectId={pid} collapsed={collapsed} onToggle={toggle} />
 				</aside>
 
-				<main className='flex-1 p-6'>
+				<main className='flex-1 p-6 overflow-y-auto'>
 					<Outlet />
 				</main>
 			</div>

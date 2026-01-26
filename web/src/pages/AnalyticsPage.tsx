@@ -261,7 +261,7 @@ export function AnalyticsPage() {
 	}
 
 	return (
-		<div className='p-6 space-y-6'>
+		<div className='p-4 space-y-4'>
 			<Card>
 				<CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
 					<div>
@@ -365,7 +365,7 @@ export function AnalyticsPage() {
 								</div>
 							</div>
 						) : (
-							<div className='h-64 rounded-md border bg-muted/10 p-3'>
+							<div className='h-64 rounded-md border bg-background p-3'>
 								{timeseries.length ? (
 									<ChartContainer
 										className='h-full w-full'
@@ -660,7 +660,7 @@ export function AnalyticsPage() {
 									</div>
 								</div>
 							) : (
-								<div className='h-64 rounded-md border bg-muted/10 p-3'>
+								<div className='h-64 rounded-md border bg-background p-3'>
 									{slowestChartData.length ? (
 										<ChartContainer
 											className='h-full w-full'
@@ -781,7 +781,7 @@ export function AnalyticsPage() {
 									</div>
 								</div>
 							) : (
-								<div className='h-64 rounded-md border bg-muted/10 p-3'>
+								<div className='h-64 rounded-md border bg-background p-3'>
 									{mostFailingChartData.length ? (
 										<ChartContainer
 											className='h-full w-full'
