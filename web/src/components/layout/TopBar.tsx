@@ -55,9 +55,6 @@ export function TopBar(props: { projectId: string }) {
 					</div>
 				</div>
 				<div className='flex items-center gap-2'>
-					<Button size='sm' disabled className='gap-1'>
-						Create Run
-					</Button>
 					<ThemeToggle />
 				</div>
 			</div>

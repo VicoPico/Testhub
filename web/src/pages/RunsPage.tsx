@@ -4,8 +4,11 @@ import { Link, useParams } from 'react-router-dom';
 import {
 	listRuns,
 	createRun,
+	batchIngestResults,
 	deleteRun,
 	ApiError,
+	type BatchResultsRequest,
+	type CreateRunRequest,
 	type RunListItem,
 	type RunStatus,
 	type ListRunsQuery,
@@ -13,6 +16,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { PageError, PageLoading } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
 import { useAuth } from '@/lib/useAuth';
@@ -50,9 +54,49 @@ export function RunsPage() {
 	const [deleting, setDeleting] = React.useState<string | null>(null);
 	// Minimal “query params” state (no heavy UI)
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
+	const [createOpen, setCreateOpen] = React.useState(false);
+	const [creating, setCreating] = React.useState(false);
+	const [createError, setCreateError] = React.useState<string | null>(null);
+	const [form, setForm] = React.useState<{
+		source: string;
+		branch: string;
+		commitSha: string;
+		resultsJson: string;
+	}>(() => ({
+		source: 'manual',
+		branch: 'main',
+		commitSha: '',
+		resultsJson: '',
+	}));
 
 	// Tune this as you like (typed!)
 	const limit: NonNullable<ListRunsQuery>['limit'] = 10;
+
+	function resetForm() {
+		setForm({
+			source: 'manual',
+			branch: 'main',
+			commitSha: '',
+			resultsJson: '',
+		});
+		setCreateError(null);
+	}
+
+	function parseResultsInput(input: string): BatchResultsRequest | null {
+		const trimmed = input.trim();
+		if (!trimmed) return null;
+		const parsed = JSON.parse(trimmed) as unknown;
+		if (Array.isArray(parsed))
+			return { results: parsed } as BatchResultsRequest;
+		if (
+			parsed &&
+			typeof parsed === 'object' &&
+			Array.isArray((parsed as BatchResultsRequest).results)
+		) {
+			return parsed as BatchResultsRequest;
+		}
+		throw new Error('Results must be a JSON array or { "results": [...] }.');
+	}
 
 	const refresh = React.useCallback(async () => {
 		// If not authed, keep UI clean + stop here.
@@ -91,16 +135,35 @@ export function RunsPage() {
 
 	async function onCreateRun() {
 		if (!hasApiKey) return;
+		setCreateOpen(true);
+	}
 
-		setError(null);
+	async function onSubmitCreateRun() {
+		if (!hasApiKey) return;
+		setCreating(true);
+		setCreateError(null);
 		setLastError(null);
+		setError(null);
 
 		try {
-			await createRun(pid);
+			const payload: CreateRunRequest = {
+				source: form.source.trim() || 'manual',
+				branch: form.branch.trim() || undefined,
+				commitSha: form.commitSha.trim() || undefined,
+			};
+			const run = await createRun(pid, payload);
+			const resultsPayload = parseResultsInput(form.resultsJson);
+			if (resultsPayload) {
+				await batchIngestResults(pid, run.id, resultsPayload);
+			}
 			await refresh();
+			setCreateOpen(false);
+			resetForm();
 		} catch (e) {
 			setLastError(e);
-			setError(e instanceof Error ? e.message : 'Unknown error');
+			setCreateError(e instanceof Error ? e.message : 'Unknown error');
+		} finally {
+			setCreating(false);
 		}
 	}
 
@@ -200,6 +263,112 @@ export function RunsPage() {
 					</Button>
 				</div>
 			</div>
+
+			{createOpen ? (
+				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+					<div className='w-full max-w-2xl rounded-lg border bg-background p-5 shadow-lg'>
+						<div className='flex items-center justify-between gap-4'>
+							<div>
+								<h2 className='text-base font-semibold'>Create run</h2>
+								<p className='text-xs text-muted-foreground'>
+									Add a run and optionally ingest results to create tests.
+								</p>
+							</div>
+							<Button
+								variant='ghost'
+								size='sm'
+								onClick={() => {
+									setCreateOpen(false);
+									resetForm();
+								}}>
+								Close
+							</Button>
+						</div>
+
+						<div className='mt-4 grid gap-3 sm:grid-cols-2'>
+							<div className='space-y-1'>
+								<label className='text-xs font-medium'>Source</label>
+								<Input
+									value={form.source}
+									onChange={(e) =>
+										setForm((prev) => ({
+											...prev,
+											source: e.target.value,
+										}))
+									}
+									placeholder='manual'
+								/>
+							</div>
+							<div className='space-y-1'>
+								<label className='text-xs font-medium'>Branch</label>
+								<Input
+									value={form.branch}
+									onChange={(e) =>
+										setForm((prev) => ({
+											...prev,
+											branch: e.target.value,
+										}))
+									}
+									placeholder='main'
+								/>
+							</div>
+							<div className='space-y-1 sm:col-span-2'>
+								<label className='text-xs font-medium'>Commit SHA</label>
+								<Input
+									value={form.commitSha}
+									onChange={(e) =>
+										setForm((prev) => ({
+											...prev,
+											commitSha: e.target.value,
+										}))
+									}
+									placeholder='deadbeef'
+								/>
+							</div>
+						</div>
+
+						<div className='mt-4 space-y-2'>
+							<label className='text-xs font-medium'>
+								Results JSON (optional)
+							</label>
+							<textarea
+								value={form.resultsJson}
+								onChange={(e) =>
+									setForm((prev) => ({
+										...prev,
+										resultsJson: e.target.value,
+									}))
+								}
+								placeholder='[{"externalId":"hw-cpu","name":"Hardware CPU check","suiteName":"Hardware","status":"PASSED","durationMs":120}]'
+								className='min-h-[160px] w-full rounded-md border bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+							/>
+							<p className='text-xs text-muted-foreground'>
+								Paste a JSON array of results or an object with a “results”
+								field. Each item needs externalId, name, and status
+								(PASSED/FAILED/SKIPPED/ERROR).
+							</p>
+							{createError ? (
+								<p className='text-xs text-destructive'>{createError}</p>
+							) : null}
+						</div>
+
+						<div className='mt-5 flex items-center justify-end gap-2'>
+							<Button
+								variant='secondary'
+								onClick={() => {
+									setCreateOpen(false);
+									resetForm();
+								}}
+								disabled={creating}>
+								Cancel
+							</Button>
+							<Button onClick={onSubmitCreateRun} disabled={creating}>
+								{creating ? 'Creating…' : 'Create run'}
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
 
 			{showAuthCallout ? <AuthRequiredCallout /> : null}
 

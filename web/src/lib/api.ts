@@ -269,15 +269,15 @@ export function listRuns(projectSlug: string, query?: Partial<ListRunsQuery>) {
 	return apiFetch<Res>(path);
 }
 
-export function createRun(projectSlug: string) {
+export function createRun(projectSlug: string, body?: CreateRunRequest) {
 	type Req = RequestBody<PathRuns, 'post'>;
 	type Res = ResponseBody<PathRuns, 'post', 201>;
 
-	const body: Req = { source: 'manual' };
+	const payload: Req = body ?? { source: 'manual' };
 
 	return apiFetch<Res>(`/projects/${encodeURIComponent(projectSlug)}/runs`, {
 		method: 'POST',
-		body: JSON.stringify(body),
+		body: JSON.stringify(payload),
 	});
 }
 
