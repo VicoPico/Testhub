@@ -87,7 +87,10 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 					OR array_to_string(tc.tags, ',') ILIKE ${qLike}
 				)
 				AND (${suiteLike}::text IS NULL OR COALESCE(tc."suiteName", '') ILIKE ${suiteLike})
-				AND (${query.status ?? null}::text IS NULL OR latest.status = ${query.status ?? null})
+				AND (
+					${query.status ?? null}::text IS NULL
+					OR latest.status = (${query.status ?? null}::"TestStatus")
+				)
 			ORDER BY COALESCE(latest."lastSeenAt", tc."createdAt") DESC
 			LIMIT ${query.limit}
 		`);
