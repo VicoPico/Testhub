@@ -40,6 +40,7 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
 		const qLike = query.q ? `%${query.q}%` : undefined;
+		const qExact = query.q ?? null;
 		const suiteLike = query.suite ? `%${query.suite}%` : undefined;
 
 		const items = await app.prisma.$queryRaw<
@@ -78,7 +79,13 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 			FROM "TestCase" tc
 			LEFT JOIN latest ON latest."testCaseId" = tc.id
 			WHERE tc."projectId" = ${project.id}
-				AND (${qLike}::text IS NULL OR tc.name ILIKE ${qLike} OR tc."externalId" ILIKE ${qLike})
+				AND (
+					${qLike}::text IS NULL
+					OR tc.name ILIKE ${qLike}
+					OR tc."externalId" ILIKE ${qLike}
+					OR tc.tags @> ARRAY[${qExact}]::text[]
+					OR array_to_string(tc.tags, ',') ILIKE ${qLike}
+				)
 				AND (${suiteLike}::text IS NULL OR COALESCE(tc."suiteName", '') ILIKE ${suiteLike})
 				AND (${query.status ?? null}::text IS NULL OR latest.status = ${query.status ?? null})
 			ORDER BY COALESCE(latest."lastSeenAt", tc."createdAt") DESC

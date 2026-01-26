@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/lib/useAuth';
 import {
@@ -48,6 +48,7 @@ function testStatusVariant(
 export function TestsPage() {
 	const { projectId } = useParams();
 	const pid = projectId ?? 'demo';
+	const [searchParams, setSearchParams] = useSearchParams();
 	const { apiKey, hasApiKey } = useAuth();
 
 	const [items, setItems] = React.useState<TestCaseListItem[]>([]);
@@ -57,7 +58,7 @@ export function TestsPage() {
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
 
-	const [q, setQ] = React.useState('');
+	const [q, setQ] = React.useState(() => searchParams.get('q') ?? '');
 	const [suite, setSuite] = React.useState('');
 	const [status, setStatus] = React.useState<StatusFilter>('ALL');
 
@@ -118,6 +119,16 @@ export function TestsPage() {
 	React.useEffect(() => {
 		void refresh();
 	}, [refresh, apiKey]);
+
+	React.useEffect(() => {
+		const trimmed = q.trim();
+		const current = searchParams.get('q') ?? '';
+		if (trimmed === current) return;
+		const next = new URLSearchParams(searchParams);
+		if (trimmed) next.set('q', trimmed);
+		else next.delete('q');
+		setSearchParams(next, { replace: true });
+	}, [q, searchParams, setSearchParams]);
 
 	React.useEffect(() => {
 		async function loadHistory() {
@@ -277,9 +288,10 @@ export function TestsPage() {
 			) : (
 				<div className='grid gap-4 lg:grid-cols-[1.2fr,0.8fr]'>
 					<div className='overflow-hidden rounded-md border'>
-						<div className='grid grid-cols-12 gap-2 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground'>
-							<div className='col-span-5'>Name</div>
+						<div className='grid grid-cols-14 gap-2 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground'>
+							<div className='col-span-4'>Name</div>
 							<div className='col-span-3'>Suite</div>
+							<div className='col-span-3'>Tags</div>
 							<div className='col-span-2'>Last status</div>
 							<div className='col-span-2 text-right'>Last seen</div>
 						</div>
@@ -292,6 +304,9 @@ export function TestsPage() {
 										lastStatus?: TestStatus | null;
 									}
 								).lastStatus;
+								const tags = t.tags ?? [];
+								const visibleTags = tags.slice(0, 2);
+								const extraCount = tags.length - visibleTags.length;
 								return (
 									<div
 										key={t.id}
@@ -305,10 +320,10 @@ export function TestsPage() {
 											}
 										}}
 										className={
-											'grid grid-cols-12 items-center gap-2 px-4 py-3 text-sm cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ' +
+											'grid grid-cols-14 items-center gap-2 px-4 py-3 text-sm cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ' +
 											(isSelected ? 'bg-muted/30' : '')
 										}>
-										<div className='col-span-5 font-medium truncate'>
+										<div className='col-span-4 font-medium truncate'>
 											{t.name}
 											<div className='text-[11px] text-muted-foreground truncate'>
 												{t.externalId}
@@ -316,6 +331,29 @@ export function TestsPage() {
 										</div>
 										<div className='col-span-3 text-muted-foreground truncate'>
 											{t.suiteName ?? '—'}
+										</div>
+										<div className='col-span-3'>
+											{tags.length ? (
+												<div className='flex flex-wrap gap-1'>
+													{visibleTags.map((tag) => (
+														<Badge
+															key={tag}
+															variant='secondary'
+															className='px-1.5 py-0 text-[10px]'>
+															{tag}
+														</Badge>
+													))}
+													{extraCount > 0 ? (
+														<Badge
+															variant='secondary'
+															className='px-1.5 py-0 text-[10px] text-muted-foreground'>
+															+{extraCount}
+														</Badge>
+													) : null}
+												</div>
+											) : (
+												<span className='text-xs text-muted-foreground'>—</span>
+											)}
 										</div>
 										<div className='col-span-2'>
 											<Badge
@@ -351,6 +389,22 @@ export function TestsPage() {
 										<div className='text-xs text-muted-foreground'>
 											Suite: {selected.suiteName ?? '—'}
 										</div>
+										{selected.tags?.length ? (
+											<div className='flex flex-wrap gap-1'>
+												{selected.tags.map((tag) => (
+													<Badge
+														key={tag}
+														variant='secondary'
+														className='px-1.5 py-0 text-[10px]'>
+														{tag}
+													</Badge>
+												))}
+											</div>
+										) : (
+											<div className='text-xs text-muted-foreground'>
+												Tags: —
+											</div>
+										)}
 									</div>
 
 									<div className='relative h-32 w-32 shrink-0'>

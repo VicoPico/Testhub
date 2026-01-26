@@ -161,6 +161,29 @@ export type AnalyticsMostFailingTestItem =
 export type AnalyticsMostFailingTestsResponse =
 	components['schemas']['AnalyticsMostFailingTestsResponse'];
 
+// Search
+export type SearchTestItem = {
+	id: string;
+	name: string;
+	externalId: string;
+	suiteName: string | null;
+	lastStatus: TestStatus | null;
+	lastSeenAt: string | null;
+};
+
+export type SearchRunItem = {
+	id: string;
+	createdAt: string;
+	status: RunStatus;
+	branch: string | null;
+	commitSha: string | null;
+};
+
+export type SearchResponse = {
+	tests: SearchTestItem[];
+	runs: SearchRunItem[];
+};
+
 // Projects
 export type Project = components['schemas']['Project'];
 export type ProjectListResponse = components['schemas']['ProjectListResponse'];
@@ -406,4 +429,15 @@ export function getAnalyticsMostFailingTests(
 		queryString ? `?${queryString}` : ''
 	}`;
 	return apiFetch<Res>(path);
+}
+
+// ----- Search -----
+
+export function searchProject(projectSlug: string, q: string, limit = 5) {
+	const params = new URLSearchParams();
+	params.set('q', q);
+	params.set('limit', String(limit));
+	return apiFetch<SearchResponse>(
+		`/projects/${encodeURIComponent(projectSlug)}/search?${params.toString()}`,
+	);
 }
