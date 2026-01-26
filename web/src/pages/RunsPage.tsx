@@ -391,11 +391,12 @@ export function RunsPage() {
 			) : (
 				<>
 					<div className='overflow-hidden rounded-md border'>
-						<div className='grid grid-cols-12 gap-2 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground'>
+						<div className='grid grid-cols-14 gap-2 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground'>
 							<div className='col-span-3'>Created</div>
 							<div className='col-span-2'>Status</div>
 							<div className='col-span-3'>Branch / Commit</div>
 							<div className='col-span-2'>Totals</div>
+							<div className='col-span-2'>Run ID</div>
 							<div className='col-span-2 text-right'>Actions</div>
 						</div>
 
@@ -403,7 +404,7 @@ export function RunsPage() {
 							{items.map((r) => (
 								<div
 									key={r.id}
-									className='grid grid-cols-12 items-center gap-2 px-4 py-3 text-sm'>
+									className='grid grid-cols-14 items-center gap-2 px-4 py-3 text-sm'>
 									<div className='col-span-3'>{formatDate(r.createdAt)}</div>
 
 									<div className='col-span-2'>
@@ -416,6 +417,10 @@ export function RunsPage() {
 
 									<div className='col-span-2 text-muted-foreground'>
 										{r.passedCount}/{r.totalCount} passed
+									</div>
+
+									<div className='col-span-2 truncate font-mono text-xs text-muted-foreground'>
+										{r.id}
 									</div>
 
 									<div className='col-span-2 flex justify-end gap-2'>
