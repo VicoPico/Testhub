@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ChartContainer, type ChartConfig } from '@/components/ui/chart';
 import {
 	Select,
 	SelectContent,
@@ -22,6 +23,13 @@ import {
 } from '@/components/ui/select';
 import { PageError, PageLoading } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
+import {
+	PolarAngleAxis,
+	PolarGrid,
+	PolarRadiusAxis,
+	RadialBar,
+	RadialBarChart,
+} from 'recharts';
 
 type StatusFilter = 'ALL' | TestStatus;
 
@@ -162,6 +170,13 @@ export function TestsPage() {
 
 		return { passed, failed, skipped, error, total, passRate, avgDurationMs };
 	}, [history]);
+
+	const passRateChartConfig: ChartConfig = {
+		passed: {
+			label: 'Passed',
+			theme: { light: 'var(--chart-2-40)', dark: 'var(--chart-2-40)' },
+		},
+	};
 
 	return (
 		<div className='space-y-6'>
@@ -326,14 +341,61 @@ export function TestsPage() {
 								Select a test to see its recent history.
 							</p>
 						) : (
-							<div className='space-y-3'>
-								<div className='space-y-1'>
-									<div className='text-sm font-medium'>{selected.name}</div>
-									<div className='text-xs text-muted-foreground break-all'>
-										{selected.externalId}
+							<div className='space-y-1'>
+								<div className='flex items-start justify-between gap-4'>
+									<div className='space-y-1'>
+										<div className='text-sm font-medium'>{selected.name}</div>
+										<div className='text-xs text-muted-foreground break-all'>
+											{selected.externalId}
+										</div>
+										<div className='text-xs text-muted-foreground'>
+											Suite: {selected.suiteName ?? '—'}
+										</div>
 									</div>
-									<div className='text-xs text-muted-foreground'>
-										Suite: {selected.suiteName ?? '—'}
+
+									<div className='relative h-32 w-32 shrink-0'>
+										<ChartContainer
+											className='h-32 w-32'
+											config={passRateChartConfig}>
+											<RadialBarChart
+												data={[
+													{
+														name: 'Passed',
+														value: stats.passRate,
+														fill: 'var(--color-passed)',
+													},
+												]}
+												startAngle={90}
+												endAngle={-270}
+												innerRadius={50}
+												outerRadius={65}>
+												<PolarGrid
+													gridType='circle'
+													radialLines={false}
+													stroke='var(--border)'
+												/>
+												<PolarAngleAxis
+													type='number'
+													domain={[0, 100]}
+													dataKey='value'
+													tick={false}
+												/>
+												<PolarRadiusAxis tick={false} axisLine={false} />
+												<RadialBar
+													dataKey='value'
+													cornerRadius={12}
+													background
+												/>
+											</RadialBarChart>
+										</ChartContainer>
+										<div className='pointer-events-none absolute inset-0 flex flex-col items-center justify-center'>
+											<div className='text-xl font-semibold'>
+												{stats.passRate}%
+											</div>
+											<div className='text-[11px] text-muted-foreground'>
+												Pass rate
+											</div>
+										</div>
 									</div>
 								</div>
 
@@ -348,7 +410,7 @@ export function TestsPage() {
 										No history yet.
 									</p>
 								) : (
-									<div className='space-y-2'>
+									<div className='space-y-3'>
 										<div className='flex flex-wrap gap-2'>
 											<Badge variant='secondary'>Last {stats.total}</Badge>
 											<Badge variant='default'>
