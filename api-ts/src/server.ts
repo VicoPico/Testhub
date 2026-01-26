@@ -13,6 +13,7 @@ import { runRoutes } from './routes/runs';
 import { projectRoutes } from './routes/projects';
 import { testRoutes } from './routes/tests';
 import { analyticsRoutes } from './routes/analytics';
+import { searchRoutes } from './routes/search';
 
 export function buildApp() {
 	const app = Fastify({ logger: true });
@@ -38,6 +39,7 @@ export function buildApp() {
 	app.register(projectRoutes);
 	app.register(testRoutes);
 	app.register(analyticsRoutes);
+	app.register(searchRoutes);
 
 	// Central error handler so OpenAPI validation / httpErrors
 	// all return a consistent shape that matches ErrorResponse.

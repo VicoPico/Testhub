@@ -31,6 +31,8 @@ tags:
     description: Endpoints used by CI to ingest test data
   - name: Analytics
     description: Aggregated analytics for a project
+  - name: Search
+    description: Project-scoped search
 
 paths:
   /health:
@@ -164,6 +166,27 @@ paths:
       responses:
         '204':
           description: No Content - Project successfully deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /projects/{projectId}/search:
+    get:
+      tags: [Search]
+      operationId: searchProject
+      summary: Search tests and runs in a project
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/SearchLimit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -438,6 +461,24 @@ components:
       description: Project slug or database id (implementation accepts both).
       schema:
         type: string
+    SearchQuery:
+      name: q
+      in: query
+      required: true
+      description: Query string (matches test names, external IDs, suite names, tags, and run fields)
+      schema:
+        type: string
+        minLength: 1
+    SearchLimit:
+      name: limit
+      in: query
+      required: false
+      description: Max results per type
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 25
+        default: 5
         minLength: 1
 
     RunId:
@@ -1122,4 +1163,58 @@ components:
         inserted:
           type: integer
           example: 2
+      additionalProperties: false
+
+    SearchResponse:
+      type: object
+      required: [tests, runs]
+      properties:
+        tests:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTestItem'
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchRunItem'
+      additionalProperties: false
+
+    SearchTestItem:
+      type: object
+      required: [id, name, externalId]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        externalId:
+          type: string
+        suiteName:
+          type: string
+          nullable: true
+        lastStatus:
+          $ref: '#/components/schemas/NullableTestStatus'
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+
+    SearchRunItem:
+      type: object
+      required: [id, createdAt, status]
+      properties:
+        id:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        branch:
+          type: string
+          nullable: true
+        commitSha:
+          type: string
+          nullable: true
       additionalProperties: false
