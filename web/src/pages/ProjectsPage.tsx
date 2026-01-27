@@ -59,7 +59,6 @@ export function ProjectsPage() {
 			setLastError(null);
 			return;
 		}
-
 		setLoading(true);
 		setError(null);
 		setLastError(null);
@@ -204,7 +203,8 @@ export function ProjectsPage() {
 									setConfirmProjectFinal(confirmProject);
 									setConfirmProject(null);
 								}}
-								disabled={deleting === confirmProject.id}>
+								disabled={deleting === confirmProject.id}
+								className='bg-destructive/70'>
 								Continue
 							</Button>
 						</div>
@@ -257,7 +257,8 @@ export function ProjectsPage() {
 							<Button
 								variant='destructive'
 								onClick={() => void onConfirmDeleteProject(confirmProjectFinal)}
-								disabled={deleting === confirmProjectFinal.id}>
+								disabled={deleting === confirmProjectFinal.id}
+								className='bg-destructive/70'>
 								Yes, delete
 							</Button>
 						</div>
@@ -417,7 +418,7 @@ export function ProjectsPage() {
 											void onDeleteProject(p);
 										}}
 										disabled={deleting === p.id}
-										className='hover:bg-destructive/20 hover:text-destructive'>
+										className='hover:bg-destructive/20 hover:text-destructive dark:bg-secondary/80'>
 										{deleting === p.id ? 'Deleting…' : 'Delete'}
 									</Button>
 								</div>

@@ -250,7 +250,6 @@ export function RunsPage() {
 
 						<div className='mt-4 space-y-2 text-sm'>
 							<div className='flex items-center justify-between'>
-								<span className='text-muted-foreground'>Run ID</span>
 								<span className='font-medium'>{confirmRun.id}</span>
 							</div>
 							<div className='flex items-center justify-between'>
@@ -286,7 +285,8 @@ export function RunsPage() {
 									setConfirmRunFinal(confirmRun);
 									setConfirmRun(null);
 								}}
-								disabled={deleting === confirmRun.id}>
+								disabled={deleting === confirmRun.id}
+								className='bg-destructive/70'>
 								Continue
 							</Button>
 						</div>
@@ -345,7 +345,8 @@ export function RunsPage() {
 							<Button
 								variant='destructive'
 								onClick={() => void onConfirmDeleteRun(confirmRunFinal)}
-								disabled={deleting === confirmRunFinal.id}>
+								disabled={deleting === confirmRunFinal.id}
+								className='bg-destructive/70'>
 								Yes, delete
 							</Button>
 						</div>
@@ -552,7 +553,7 @@ export function RunsPage() {
 											size='sm'
 											onClick={() => onDeleteRun(r)}
 											disabled={deleting === r.id}
-											className='hover:bg-destructive/20 hover:text-destructive'>
+											className='hover:bg-destructive/20 hover:text-destructive dark:bg-secondary/80'>
 											{deleting === r.id ? 'Deleting…' : 'Delete'}
 										</Button>
 									</div>
