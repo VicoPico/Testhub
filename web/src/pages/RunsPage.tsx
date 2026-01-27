@@ -52,6 +52,9 @@ export function RunsPage() {
 	const [lastError, setLastError] = React.useState<unknown>(null);
 	// Delete state
 	const [deleting, setDeleting] = React.useState<string | null>(null);
+	const [confirmRun, setConfirmRun] = React.useState<RunListItem | null>(null);
+	const [confirmRunFinal, setConfirmRunFinal] =
+		React.useState<RunListItem | null>(null);
 	// Minimal “query params” state (no heavy UI)
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
 	const [createOpen, setCreateOpen] = React.useState(false);
@@ -194,21 +197,13 @@ export function RunsPage() {
 
 	async function onDeleteRun(run: RunListItem) {
 		if (!hasApiKey) return;
+		setConfirmRun(run);
+	}
 
-		const confirmed = window.confirm(
-			`Are you sure you want to delete this run?\n\n` +
-				`Run ID: ${run.id}\n` +
-				`Created: ${formatDate(run.createdAt)}\n` +
-				`Status: ${run.status}\n` +
-				`Total Tests: ${run.totalCount}\n\n` +
-				`⚠️ WARNING: This will permanently delete:\n` +
-				`• This test run\n` +
-				`• All ${run.totalCount} test results in this run\n\n` +
-				`This action cannot be undone.`,
-		);
+	async function onConfirmDeleteRun(run: RunListItem) {
+		if (!hasApiKey) return;
 
-		if (!confirmed) return;
-
+		setConfirmRunFinal(null);
 		setDeleting(run.id);
 		setError(null);
 		setLastError(null);
@@ -235,6 +230,128 @@ export function RunsPage() {
 
 	return (
 		<div className='space-y-4'>
+			{confirmRun ? (
+				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+					<div className='w-full max-w-xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>
+						<div className='flex items-start justify-between gap-4'>
+							<div>
+								<h2 className='text-base font-semibold'>Delete run</h2>
+								<p className='text-xs text-muted-foreground'>
+									This will permanently remove the run and its results.
+								</p>
+							</div>
+							<Button
+								variant='ghost'
+								size='sm'
+								onClick={() => setConfirmRun(null)}>
+								Close
+							</Button>
+						</div>
+
+						<div className='mt-4 space-y-2 text-sm'>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Run ID</span>
+								<span className='font-medium'>{confirmRun.id}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Created</span>
+								<span className='font-medium'>
+									{formatDate(confirmRun.createdAt)}
+								</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Status</span>
+								<span className='font-medium'>{confirmRun.status}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Total Tests</span>
+								<span className='font-medium'>{confirmRun.totalCount}</span>
+							</div>
+							<div className='text-xs text-muted-foreground'>
+								All {confirmRun.totalCount} test results in this run will be
+								permanently deleted.
+							</div>
+						</div>
+
+						<div className='mt-6 flex items-center justify-end gap-2'>
+							<Button
+								variant='outline'
+								onClick={() => setConfirmRun(null)}
+								disabled={deleting === confirmRun.id}>
+								Cancel
+							</Button>
+							<Button
+								variant='destructive'
+								onClick={() => {
+									setConfirmRunFinal(confirmRun);
+									setConfirmRun(null);
+								}}
+								disabled={deleting === confirmRun.id}>
+								Continue
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
+			{confirmRunFinal ? (
+				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+					<div className='w-full max-w-xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>
+						<div className='flex items-start justify-between gap-4'>
+							<div>
+								<h2 className='text-base font-semibold'>Confirm delete</h2>
+								<p className='text-xs text-muted-foreground'>
+									Are you really sure you want to delete this run? This is
+									permanent.
+								</p>
+							</div>
+							<Button
+								variant='ghost'
+								size='sm'
+								onClick={() => setConfirmRunFinal(null)}>
+								Close
+							</Button>
+						</div>
+
+						<div className='mt-4 space-y-2 text-sm'>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Run ID</span>
+								<span className='font-medium'>{confirmRunFinal.id}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Created</span>
+								<span className='font-medium'>
+									{formatDate(confirmRunFinal.createdAt)}
+								</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Status</span>
+								<span className='font-medium'>{confirmRunFinal.status}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Total Tests</span>
+								<span className='font-medium'>
+									{confirmRunFinal.totalCount}
+								</span>
+							</div>
+						</div>
+
+						<div className='mt-6 flex items-center justify-end gap-2'>
+							<Button
+								variant='outline'
+								onClick={() => setConfirmRunFinal(null)}
+								disabled={deleting === confirmRunFinal.id}>
+								Cancel
+							</Button>
+							<Button
+								variant='destructive'
+								onClick={() => void onConfirmDeleteRun(confirmRunFinal)}
+								disabled={deleting === confirmRunFinal.id}>
+								Yes, delete
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
 			<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
 				<div>
 					<h1 className='text-xl font-semibold'>Runs</h1>
@@ -258,7 +375,10 @@ export function RunsPage() {
 						<option value='CANCELED'>CANCELED</option>
 					</select>
 
-					<Button onClick={onCreateRun} disabled={loading || !hasApiKey}>
+					<Button
+						onClick={onCreateRun}
+						disabled={loading || !hasApiKey}
+						className='transition-shadow hover:shadow-md'>
 						Create Run
 					</Button>
 				</div>
@@ -266,7 +386,7 @@ export function RunsPage() {
 
 			{createOpen ? (
 				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
-					<div className='w-full max-w-2xl rounded-lg border bg-background p-5 shadow-lg'>
+					<div className='w-full max-w-2xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>
 						<div className='flex items-center justify-between gap-4'>
 							<div>
 								<h2 className='text-base font-semibold'>Create run</h2>
@@ -354,7 +474,7 @@ export function RunsPage() {
 
 						<div className='mt-5 flex items-center justify-end gap-2'>
 							<Button
-								variant='secondary'
+								variant='outline'
 								onClick={() => {
 									setCreateOpen(false);
 									resetForm();
@@ -424,17 +544,15 @@ export function RunsPage() {
 									</div>
 
 									<div className='col-span-2 flex justify-end gap-2'>
-										<Link
-											className='text-sm underline underline-offset-4 hover:text-foreground'
-											to={`/projects/${pid}/runs/${r.id}`}>
-											View
-										</Link>
+										<Button variant='outline' size='sm' asChild>
+											<Link to={`/projects/${pid}/runs/${r.id}`}>View</Link>
+										</Button>
 										<Button
-											variant='outline'
+											variant='secondary'
 											size='sm'
 											onClick={() => onDeleteRun(r)}
 											disabled={deleting === r.id}
-											className='text-destructive hover:text-destructive'>
+											className='hover:bg-destructive/20 hover:text-destructive'>
 											{deleting === r.id ? 'Deleting…' : 'Delete'}
 										</Button>
 									</div>
@@ -447,7 +565,8 @@ export function RunsPage() {
 						<Button
 							variant='secondary'
 							onClick={onLoadMore}
-							disabled={!hasApiKey || loadingMore || !nextCursor}>
+							disabled={!hasApiKey || loadingMore || !nextCursor}
+							className='transition-shadow hover:shadow-md'>
 							{nextCursor
 								? loadingMore
 									? 'Loading…'

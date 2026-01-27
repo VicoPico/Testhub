@@ -41,9 +41,15 @@ export function ProjectsPage() {
 	const [slug, setSlug] = React.useState('');
 	const [creating, setCreating] = React.useState(false);
 	const [createError, setCreateError] = React.useState<string | null>(null);
+	const [createOpen, setCreateOpen] = React.useState(false);
 
 	// Delete state
 	const [deleting, setDeleting] = React.useState<string | null>(null);
+	const [confirmProject, setConfirmProject] = React.useState<Project | null>(
+		null,
+	);
+	const [confirmProjectFinal, setConfirmProjectFinal] =
+		React.useState<Project | null>(null);
 
 	const refresh = React.useCallback(async () => {
 		if (!hasApiKey) {
@@ -95,6 +101,7 @@ export function ProjectsPage() {
 
 			setName('');
 			setSlug('');
+			setCreateOpen(false);
 			await refresh();
 		} catch (e) {
 			setLastError(e);
@@ -112,21 +119,13 @@ export function ProjectsPage() {
 
 	async function onDeleteProject(project: Project) {
 		if (!hasApiKey) return;
+		setConfirmProject(project);
+	}
 
-		// Note: In a production app, you'd want to fetch the run count first
-		// For now, we use a generic warning
-		const confirmed = window.confirm(
-			`Are you sure you want to delete "${project.name}"?\n\n` +
-				`⚠️ WARNING: This will permanently delete:\n` +
-				`• The project "${project.name}"\n` +
-				`• All test runs in this project\n` +
-				`• All test cases\n` +
-				`• All test results\n\n` +
-				`This action cannot be undone.`,
-		);
+	async function onConfirmDeleteProject(project: Project) {
+		if (!hasApiKey) return;
 
-		if (!confirmed) return;
-
+		setConfirmProjectFinal(null);
 		setDeleting(project.id);
 		setError(null);
 		setLastError(null);
@@ -153,6 +152,118 @@ export function ProjectsPage() {
 
 	return (
 		<div className='space-y-6'>
+			{confirmProject ? (
+				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+					<div className='w-full max-w-xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>
+						<div className='flex items-start justify-between gap-4'>
+							<div>
+								<h2 className='text-base font-semibold'>Delete project</h2>
+								<p className='text-xs text-muted-foreground'>
+									This will permanently remove the project and all data inside.
+								</p>
+							</div>
+							<Button
+								variant='ghost'
+								size='sm'
+								onClick={() => setConfirmProject(null)}>
+								Close
+							</Button>
+						</div>
+
+						<div className='mt-4 space-y-2 text-sm'>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Project</span>
+								<span className='font-medium'>{confirmProject.name}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Slug</span>
+								<span className='font-medium'>{confirmProject.slug}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Created</span>
+								<span className='font-medium'>
+									{formatDate(confirmProject.createdAt)}
+								</span>
+							</div>
+							<div className='text-xs text-muted-foreground'>
+								This deletes all test runs, test cases, and test results in this
+								project.
+							</div>
+						</div>
+
+						<div className='mt-6 flex items-center justify-end gap-2'>
+							<Button
+								variant='outline'
+								onClick={() => setConfirmProject(null)}
+								disabled={deleting === confirmProject.id}>
+								Cancel
+							</Button>
+							<Button
+								variant='destructive'
+								onClick={() => {
+									setConfirmProjectFinal(confirmProject);
+									setConfirmProject(null);
+								}}
+								disabled={deleting === confirmProject.id}>
+								Continue
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
+			{confirmProjectFinal ? (
+				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+					<div className='w-full max-w-xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>
+						<div className='flex items-start justify-between gap-4'>
+							<div>
+								<h2 className='text-base font-semibold'>Confirm delete</h2>
+								<p className='text-xs text-muted-foreground'>
+									Are you really sure you want to delete this project? This is
+									permanent.
+								</p>
+							</div>
+							<Button
+								variant='ghost'
+								size='sm'
+								onClick={() => setConfirmProjectFinal(null)}>
+								Close
+							</Button>
+						</div>
+
+						<div className='mt-4 space-y-2 text-sm'>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Project</span>
+								<span className='font-medium'>{confirmProjectFinal.name}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Slug</span>
+								<span className='font-medium'>{confirmProjectFinal.slug}</span>
+							</div>
+							<div className='flex items-center justify-between'>
+								<span className='text-muted-foreground'>Created</span>
+								<span className='font-medium'>
+									{formatDate(confirmProjectFinal.createdAt)}
+								</span>
+							</div>
+						</div>
+
+						<div className='mt-6 flex items-center justify-end gap-2'>
+							<Button
+								variant='outline'
+								onClick={() => setConfirmProjectFinal(null)}
+								disabled={deleting === confirmProjectFinal.id}>
+								Cancel
+							</Button>
+							<Button
+								variant='destructive'
+								onClick={() => void onConfirmDeleteProject(confirmProjectFinal)}
+								disabled={deleting === confirmProjectFinal.id}>
+								Yes, delete
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : null}
 			<div className='flex items-center justify-between gap-3'>
 				<div>
 					<h1 className='text-xl font-semibold'>Projects</h1>
@@ -160,64 +271,93 @@ export function ProjectsPage() {
 						Manage projects in your organization.
 					</p>
 				</div>
+				<Button
+					onClick={() => {
+						setName('');
+						setSlug('');
+						setCreateOpen(true);
+						setCreateError(null);
+					}}
+					disabled={!hasApiKey}>
+					Create Project
+				</Button>
 			</div>
 
 			{showAuthCallout ? <AuthRequiredCallout /> : null}
 
-			{/* Create project form */}
-			<div className='rounded-md border p-4 space-y-3'>
-				<h2 className='text-sm font-medium'>Create a new project</h2>
-				<p className='text-xs text-muted-foreground'>
-					Choose a human-friendly name and a slug. The slug is used in URLs and
-					CI.
-				</p>
+			{createOpen ? (
+				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+					<div className='w-full max-w-xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>
+						<div className='flex items-center justify-between gap-4'>
+							<div>
+								<h2 className='text-base font-semibold'>Create project</h2>
+								<p className='text-xs text-muted-foreground'>
+									Choose a name and slug. The slug is used in URLs and CI.
+								</p>
+							</div>
+							<Button
+								variant='ghost'
+								size='sm'
+								onClick={() => {
+									setCreateOpen(false);
+									setCreateError(null);
+								}}>
+								Close
+							</Button>
+						</div>
 
-				<form
-					className='grid gap-3 sm:grid-cols-[2fr,2fr,auto]'
-					onSubmit={onCreateProject}>
-					<div className='space-y-1'>
-						<label className='text-xs font-medium' htmlFor='project-name'>
-							Name
-						</label>
-						<Input
-							id='project-name'
-							placeholder='Demo project'
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							disabled={creating || !hasApiKey}
-						/>
+						<form className='mt-4 grid gap-3' onSubmit={onCreateProject}>
+							<div className='space-y-1'>
+								<label className='text-xs font-medium' htmlFor='project-name'>
+									Name
+								</label>
+								<Input
+									id='project-name'
+									placeholder='Demo project'
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									disabled={creating || !hasApiKey}
+								/>
+							</div>
+
+							<div className='space-y-1'>
+								<label className='text-xs font-medium' htmlFor='project-slug'>
+									Slug
+								</label>
+								<Input
+									id='project-slug'
+									placeholder='demo'
+									value={slug}
+									onChange={(e) => setSlug(e.target.value)}
+									disabled={creating || !hasApiKey}
+								/>
+								<p className='text-[11px] text-muted-foreground'>
+									Leave empty to auto-generate from the name.
+								</p>
+							</div>
+
+							{createError ? (
+								<p className='text-xs text-destructive'>{createError}</p>
+							) : null}
+
+							<div className='flex items-center justify-end gap-2'>
+								<Button
+									variant='outline'
+									onClick={() => {
+										setCreateOpen(false);
+										setCreateError(null);
+									}}
+									disabled={creating}>
+									Cancel
+								</Button>
+								<Button type='submit' disabled={creating || !hasApiKey}>
+									{creating ? 'Creating…' : 'Create project'}
+								</Button>
+							</div>
+						</form>
 					</div>
-
-					<div className='space-y-1'>
-						<label className='text-xs font-medium' htmlFor='project-slug'>
-							Slug
-						</label>
-						<Input
-							id='project-slug'
-							placeholder='demo'
-							value={slug}
-							onChange={(e) => setSlug(e.target.value)}
-							disabled={creating || !hasApiKey}
-						/>
-						<p className='text-[11px] text-muted-foreground'>
-							Leave empty to auto-generate from the name.
-						</p>
-					</div>
-
-					<div className='flex items-end'>
-						<Button
-							type='submit'
-							disabled={creating || !hasApiKey}
-							className='w-full sm:w-auto'>
-							{creating ? 'Creating…' : 'Create'}
-						</Button>
-					</div>
-				</form>
-
-				{createError ? (
-					<p className='text-xs text-destructive'>{createError}</p>
-				) : null}
-			</div>
+				</div>
+			) : null}
 
 			{/* Projects list */}
 			{error ? (
@@ -270,14 +410,14 @@ export function ProjectsPage() {
 								</div>
 								<div className='col-span-2 flex justify-end gap-2'>
 									<Button
-										variant='outline'
+										variant='secondary'
 										size='sm'
 										onClick={(e) => {
 											e.stopPropagation();
 											void onDeleteProject(p);
 										}}
 										disabled={deleting === p.id}
-										className='text-destructive hover:text-destructive'>
+										className='hover:bg-destructive/20 hover:text-destructive'>
 										{deleting === p.id ? 'Deleting…' : 'Delete'}
 									</Button>
 								</div>

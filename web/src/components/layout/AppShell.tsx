@@ -1,12 +1,31 @@
 import { Outlet, useParams } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { SidebarNav } from './SidebarNav';
 import { TopBar } from './TopBar';
 import { useSidebarState } from './useSidebarState';
 
 export function AppShell() {
 	const { projectId } = useParams();
-	const pid = projectId ?? 'unknown';
+	const [lastProjectId, setLastProjectId] = useState<string | undefined>(() => {
+		if (typeof window === 'undefined') return undefined;
+		try {
+			return localStorage.getItem('lastProjectId') ?? undefined;
+		} catch {
+			return undefined;
+		}
+	});
+
+	useEffect(() => {
+		if (!projectId) return;
+		setLastProjectId(projectId);
+		try {
+			localStorage.setItem('lastProjectId', projectId);
+		} catch {
+			// Ignore storage errors
+		}
+	}, [projectId]);
+
+	const pid = projectId ?? lastProjectId;
 
 	const { collapsed, toggle } = useSidebarState(pid);
 
