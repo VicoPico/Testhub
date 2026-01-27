@@ -9,7 +9,7 @@ import { SidebarNav } from './SidebarNav';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { searchProject, type SearchResponse } from '@/lib/api';
 
-export function TopBar(props: { projectId: string }) {
+export function TopBar(props: { projectId?: string }) {
 	const pageTitle = usePageTitle();
 	const [mobileOpen, setMobileOpen] = React.useState(false);
 	const [query, setQuery] = React.useState('');
@@ -25,7 +25,7 @@ export function TopBar(props: { projectId: string }) {
 
 	React.useEffect(() => {
 		const trimmed = query.trim();
-		if (!trimmed) {
+		if (!trimmed || !props.projectId) {
 			setResults(null);
 			setSearchError(null);
 			setSearchOpen(false);
@@ -55,7 +55,7 @@ export function TopBar(props: { projectId: string }) {
 
 	return (
 		<header className='sticky top-0 z-40 h-14 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
-			<div className='h-full px-4 flex items-center justify-between gap-3'>
+			<div className='h-full px-4 flex items-center justify-between gap-3 bg-background'>
 				<div className='flex items-center gap-2 min-w-0'>
 					{/* Mobile sidebar */}
 					<div className='md:hidden'>
@@ -81,7 +81,7 @@ export function TopBar(props: { projectId: string }) {
 						<div className='flex items-center gap-2 min-w-0'>
 							<span className='font-semibold tracking-tight'>Testhub</span>
 							<Badge variant='secondary' className='truncate max-w-[140px]'>
-								{props.projectId}
+								{props.projectId ?? 'Select project'}
 							</Badge>
 						</div>
 						<div className='text-xs text-muted-foreground truncate'>
@@ -92,107 +92,113 @@ export function TopBar(props: { projectId: string }) {
 
 				{/* Project search (desktop only) */}
 				<div className='hidden md:flex flex-1 justify-center'>
-					<div className='relative w-full max-w-md'>
-						<Input
-							placeholder='Search runs, tests, tags…'
-							value={query}
-							onChange={(e) => setQuery(e.target.value)}
-							onFocus={() => {
-								if (query.trim()) setSearchOpen(true);
-							}}
-							onBlur={() => {
-								window.setTimeout(() => setSearchOpen(false), 150);
-							}}
-						/>
-						{searchOpen ? (
-							<div className='absolute left-0 right-0 top-full z-50 mt-2 rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md'>
-								{searchLoading ? (
-									<div className='px-2 py-2 text-xs text-muted-foreground'>
-										Searching…
-									</div>
-								) : searchError ? (
-									<div className='px-2 py-2 text-xs text-destructive'>
-										{searchError}
-									</div>
-								) : results ? (
-									<div className='space-y-3'>
-										<div>
-											<div className='px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>
-												Tests
-											</div>
-											<div className='mt-1 space-y-1'>
-												{results.tests.length ? (
-													results.tests.map((t) => (
-														<Link
-															key={t.id}
-															to={`/projects/${props.projectId}/tests?q=${encodeURIComponent(
-																t.externalId ?? t.name,
-															)}`}
-															className='flex items-center justify-between gap-3 rounded-md px-2 py-1 text-xs hover:bg-muted/40'>
-															<div className='min-w-0'>
-																<div className='truncate font-medium'>
-																	{t.name}
-																</div>
-																<div className='truncate text-[11px] text-muted-foreground'>
-																	{t.externalId}
-																</div>
-															</div>
-															{t.lastStatus ? (
-																<span className='text-[11px] text-muted-foreground'>
-																	{t.lastStatus}
-																</span>
-															) : null}
-														</Link>
-													))
-												) : (
-													<div className='px-2 py-1 text-xs text-muted-foreground'>
-														No test matches
-													</div>
-												)}
-											</div>
+					{props.projectId ? (
+						<div className='relative w-full max-w-md'>
+							<Input
+								placeholder='Search runs, tests, tags…'
+								value={query}
+								onChange={(e) => setQuery(e.target.value)}
+								onFocus={() => {
+									if (query.trim()) setSearchOpen(true);
+								}}
+								onBlur={() => {
+									window.setTimeout(() => setSearchOpen(false), 150);
+								}}
+							/>
+							{searchOpen ? (
+								<div className='absolute left-0 right-0 top-full z-50 mt-2 rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md'>
+									{searchLoading ? (
+										<div className='px-2 py-2 text-xs text-muted-foreground'>
+											Searching…
 										</div>
+									) : searchError ? (
+										<div className='px-2 py-2 text-xs text-destructive'>
+											{searchError}
+										</div>
+									) : results ? (
+										<div className='space-y-3'>
+											<div>
+												<div className='px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>
+													Tests
+												</div>
+												<div className='mt-1 space-y-1'>
+													{results.tests.length ? (
+														results.tests.map((t) => (
+															<Link
+																key={t.id}
+																to={`/projects/${props.projectId}/tests?q=${encodeURIComponent(
+																	t.externalId ?? t.name,
+																)}`}
+																className='flex items-center justify-between gap-3 rounded-md px-2 py-1 text-xs hover:bg-muted/40'>
+																<div className='min-w-0'>
+																	<div className='truncate font-medium'>
+																		{t.name}
+																	</div>
+																	<div className='truncate text-[11px] text-muted-foreground'>
+																		{t.externalId}
+																	</div>
+																</div>
+																{t.lastStatus ? (
+																	<span className='text-[11px] text-muted-foreground'>
+																		{t.lastStatus}
+																	</span>
+																) : null}
+															</Link>
+														))
+													) : (
+														<div className='px-2 py-1 text-xs text-muted-foreground'>
+															No test matches
+														</div>
+													)}
+												</div>
+											</div>
 
-										<div>
-											<div className='px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>
-												Runs
-											</div>
-											<div className='mt-1 space-y-1'>
-												{results.runs.length ? (
-													results.runs.map((r) => (
-														<Link
-															key={r.id}
-															to={`/projects/${props.projectId}/runs/${r.id}`}
-															className='flex items-center justify-between gap-3 rounded-md px-2 py-1 text-xs hover:bg-muted/40'>
-															<div className='min-w-0'>
-																<div className='truncate font-medium'>
-																	{r.id}
+											<div>
+												<div className='px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>
+													Runs
+												</div>
+												<div className='mt-1 space-y-1'>
+													{results.runs.length ? (
+														results.runs.map((r) => (
+															<Link
+																key={r.id}
+																to={`/projects/${props.projectId}/runs/${r.id}`}
+																className='flex items-center justify-between gap-3 rounded-md px-2 py-1 text-xs hover:bg-muted/40'>
+																<div className='min-w-0'>
+																	<div className='truncate font-medium'>
+																		{r.id}
+																	</div>
+																	<div className='truncate text-[11px] text-muted-foreground'>
+																		{r.branch ?? '—'}
+																		{r.commitSha ? ` • ${r.commitSha}` : ''}
+																	</div>
 																</div>
-																<div className='truncate text-[11px] text-muted-foreground'>
-																	{r.branch ?? '—'}
-																	{r.commitSha ? ` • ${r.commitSha}` : ''}
-																</div>
-															</div>
-															<span className='text-[11px] text-muted-foreground'>
-																{r.status}
-															</span>
-														</Link>
-													))
-												) : (
-													<div className='px-2 py-1 text-xs text-muted-foreground'>
-														No run matches
-													</div>
-												)}
+																<span className='text-[11px] text-muted-foreground'>
+																	{r.status}
+																</span>
+															</Link>
+														))
+													) : (
+														<div className='px-2 py-1 text-xs text-muted-foreground'>
+															No run matches
+														</div>
+													)}
+												</div>
 											</div>
 										</div>
-									</div>
-								) : (
-									<div className='px-2 py-2 text-xs text-muted-foreground'>
-										Type to search in this project.
-									</div>
-								)}
-							</div>
-						) : null}
-					</div>
+									) : (
+										<div className='px-2 py-2 text-xs text-muted-foreground'>
+											Type to search in this project.
+										</div>
+									)}
+								</div>
+							) : null}
+						</div>
+					) : (
+						<div className='w-full max-w-md text-xs text-muted-foreground'>
+							Select a project to search.
+						</div>
+					)}
 				</div>
 				<div className='flex items-center gap-2'>
 					<ThemeToggle />
