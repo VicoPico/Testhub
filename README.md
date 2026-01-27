@@ -9,6 +9,8 @@ Testhub is a fast, developer-focused platform to ingest, store, and explore auto
 - Organization-scoped API key authentication
 - Real-time test result tracking and filtering
 - Tests explorer with history and status breakdowns
+- Tags on test cases with tag-based filtering
+- Project-scoped search across runs and tests
 - Analytics dashboards with tables and charts (time series, slowest tests, most failing tests)
 - Chart view toggles (tabular vs charts, bars vs stacked area)
 - shadcn-styled chart components with themed tooltips/legends
@@ -140,6 +142,10 @@ The test script validates:
 
 - `GET /projects/:projectId/tests` - List test cases with last status
 - `GET /projects/:projectId/tests/:testCaseId/history` - Test execution history
+
+### Search
+
+- `GET /projects/:projectId/search` - Search tests and runs within a project
 
 ### Analytics
 
