@@ -104,6 +104,7 @@ export function TopBar(props: { projectId?: string }) {
 								onBlur={() => {
 									window.setTimeout(() => setSearchOpen(false), 150);
 								}}
+								className='transition-shadow hover:shadow-md hover:ring-1 hover:ring-ring/40 hover:bg-muted/40'
 							/>
 							{searchOpen ? (
 								<div className='absolute left-0 right-0 top-full z-50 mt-2 rounded-md border bg-popover p-2 text-sm text-popover-foreground shadow-md'>

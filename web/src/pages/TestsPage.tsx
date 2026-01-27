@@ -211,6 +211,7 @@ export function TestsPage() {
 						value={q}
 						onChange={(e) => setQ(e.target.value)}
 						disabled={!hasApiKey}
+						className='transition-shadow hover:shadow-md hover:ring-1 hover:ring-ring/40 hover:bg-muted/40'
 					/>
 				</div>
 
@@ -224,6 +225,7 @@ export function TestsPage() {
 						value={suite}
 						onChange={(e) => setSuite(e.target.value)}
 						disabled={!hasApiKey}
+						className='transition-shadow hover:shadow-md hover:ring-1 hover:ring-ring/40 hover:bg-muted/40'
 					/>
 				</div>
 
@@ -233,7 +235,7 @@ export function TestsPage() {
 						value={status}
 						onValueChange={(v) => setStatus(v as StatusFilter)}
 						disabled={!hasApiKey}>
-						<SelectTrigger>
+						<SelectTrigger className='transition-shadow hover:shadow-md hover:ring-1 hover:ring-ring/40 hover:bg-muted/40'>
 							<SelectValue placeholder='All' />
 						</SelectTrigger>
 						<SelectContent>
