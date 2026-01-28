@@ -18,7 +18,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import {
 	ChartContainer,
 	ChartLegend,
@@ -33,6 +33,9 @@ import {
 	Bar,
 	BarChart,
 	CartesianGrid,
+	Cell,
+	Pie,
+	PieChart,
 	XAxis,
 	YAxis,
 } from 'recharts';
@@ -151,6 +154,30 @@ export function AnalyticsPage() {
 		[timeseries],
 	);
 
+	const totals = useMemo(() => {
+		return timeseriesChartData.reduce(
+			(acc, d) => {
+				acc.passed += d.passed ?? 0;
+				acc.failed += d.failed ?? 0;
+				acc.error += d.error ?? 0;
+				acc.skipped += d.skipped ?? 0;
+				return acc;
+			},
+			{ passed: 0, failed: 0, error: 0, skipped: 0 },
+		);
+	}, [timeseriesChartData]);
+
+	const pieData = useMemo(
+		() =>
+			[
+				{ key: 'passed', name: 'Passed', value: totals.passed },
+				{ key: 'failed', name: 'Failed', value: totals.failed },
+				{ key: 'error', name: 'Error', value: totals.error },
+				{ key: 'skipped', name: 'Skipped', value: totals.skipped },
+			].filter((d) => d.value > 0),
+		[totals],
+	);
+
 	const timeDomain = useMemo(() => {
 		if (!timeseriesChartData.length) return undefined;
 		const nonZero = timeseriesChartData.filter((d) => d.total > 0);
@@ -262,16 +289,16 @@ export function AnalyticsPage() {
 
 	return (
 		<div className='p-4 space-y-4'>
-			<Card>
-				<CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
-					<div>
+			<Card className='bg-muted text-foreground'>
+				<CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+					<div className='space-y-1.5'>
 						<CardTitle>Analytics</CardTitle>
 						<CardDescription>
 							Last {days} day{days === 1 ? '' : 's'} for{' '}
 							<span className='font-mono'>{projectId}</span>
 						</CardDescription>
 					</div>
-					<div className='flex flex-wrap items-center gap-2'>
+					<div className='flex flex-wrap items-center gap-2 sm:justify-end'>
 						<Select
 							value={String(days)}
 							onValueChange={(v) => setDays(Number(v))}>
@@ -286,14 +313,18 @@ export function AnalyticsPage() {
 								<SelectItem value='90'>Last 90 days</SelectItem>
 							</SelectContent>
 						</Select>
-						<Tabs
-							value={viewMode}
-							onValueChange={(v) => setViewMode(v as 'table' | 'chart')}>
-							<TabsList className='h-9'>
-								<TabsTrigger value='table'>Tabular</TabsTrigger>
-								<TabsTrigger value='chart'>Charts</TabsTrigger>
-							</TabsList>
-						</Tabs>
+						<div className='flex items-center gap-2 text-xs text-muted-foreground'>
+							<Switch
+								size='sm'
+								checked={viewMode === 'chart'}
+								onCheckedChange={(checked) =>
+									setViewMode(checked ? 'chart' : 'table')
+								}
+							/>
+							<span className='inline-flex min-w-[72px] justify-start'>
+								{viewMode === 'chart' ? 'Charts' : 'Tabular'}
+							</span>
+						</div>
 						<Button
 							variant='secondary'
 							disabled={refreshing}
@@ -305,36 +336,40 @@ export function AnalyticsPage() {
 			</Card>
 
 			{hasNoData && (
-				<Card>
+				<Card className='bg-muted text-foreground'>
 					<CardContent className='pt-4 text-sm text-muted-foreground'>
 						No run results in the selected window yet.
 					</CardContent>
 				</Card>
 			)}
 
-			<div className='grid gap-6'>
-				<Card>
+			<div className='grid gap-6 lg:grid-cols-2'>
+				<Card className='bg-muted text-foreground'>
 					<CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
 						<div>
 							<CardTitle>Failures over time</CardTitle>
 							<CardDescription>Daily totals by status</CardDescription>
 						</div>
 						{viewMode === 'chart' ? (
-							<Tabs
-								value={timeseriesView}
-								onValueChange={(v) => setTimeseriesView(v as 'bar' | 'area')}>
-								<TabsList className='h-8'>
-									<TabsTrigger value='bar'>Bars</TabsTrigger>
-									<TabsTrigger value='area'>Stacked area</TabsTrigger>
-								</TabsList>
-							</Tabs>
+							<div className='flex items-center gap-2 text-xs text-muted-foreground'>
+								<Switch
+									size='sm'
+									checked={timeseriesView === 'area'}
+									onCheckedChange={(checked) =>
+										setTimeseriesView(checked ? 'area' : 'bar')
+									}
+								/>
+								<span className='inline-flex min-w-[96px] justify-start'>
+									{timeseriesView === 'area' ? 'Stacked area' : 'Bars'}
+								</span>
+							</div>
 						) : null}
 					</CardHeader>
 					<CardContent>
 						{viewMode === 'table' ? (
 							<div className='overflow-x-auto'>
-								<div className='max-h-[240px] min-w-[640px] overflow-y-auto divide-y rounded-md border'>
-									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
+								<div className='max-h-[240px] min-w-[640px] overflow-y-auto divide-y rounded-md border dark:bg-[rgb(20,25,28)]'>
+									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-[rgb(20,25,28)]'>
 										<div>Day</div>
 										<div className='text-right'>Passed</div>
 										<div className='text-right'>Failed</div>
@@ -365,7 +400,7 @@ export function AnalyticsPage() {
 								</div>
 							</div>
 						) : (
-							<div className='h-64 rounded-md border bg-background p-3'>
+							<div className='h-64 rounded-md border bg-background p-3 dark:bg-[rgb(20,25,28)]'>
 								{timeseries.length ? (
 									<ChartContainer
 										className='h-full w-full'
@@ -617,249 +652,312 @@ export function AnalyticsPage() {
 					</CardContent>
 				</Card>
 
-				<div className='grid gap-6 lg:grid-cols-2'>
-					<Card>
-						<CardHeader>
-							<CardTitle>Slowest tests</CardTitle>
-							<CardDescription>Top {limit} by avg duration</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{viewMode === 'table' ? (
-								<div className='overflow-x-auto'>
-									<div className='max-h-[240px] min-w-[520px] overflow-y-auto divide-y rounded-md border'>
-										<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
-											<div className='col-span-2'>Test</div>
-											<div className='col-span-2'>Suite</div>
-											<div className='text-right'>Avg</div>
-											<div className='text-right'>Max</div>
-										</div>
-										{slowest.length ? (
-											slowest.map((t) => (
-												<div
-													key={t.testCaseId}
-													className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
-													<div className='col-span-2 truncate font-mono text-xs'>
-														{t.name}
-													</div>
-													<div className='col-span-2 truncate font-mono text-xs'>
-														{t.suiteName ?? '—'}
-													</div>
-													<div className='text-right'>
-														{ms(t.avgDurationMs)}
-													</div>
-													<div className='text-right'>
-														{ms(t.maxDurationMs)}
-													</div>
-												</div>
-											))
-										) : (
-											<div className='px-3 py-3 text-sm text-muted-foreground'>
-												No slow tests yet.
-											</div>
-										)}
+				<Card className='bg-muted text-foreground'>
+					<CardHeader>
+						<CardTitle>Failures breakdown</CardTitle>
+						<CardDescription>Totals by status</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{viewMode === 'table' ? (
+							<div className='overflow-x-auto'>
+								<div className='max-h-[240px] min-w-[360px] overflow-y-auto divide-y rounded-md border dark:bg-[rgb(20,25,28)]'>
+									<div className='grid grid-cols-2 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-[rgb(20,25,28)]'>
+										<div>Status</div>
+										<div className='text-right'>Total</div>
 									</div>
-								</div>
-							) : (
-								<div className='h-64 rounded-md border bg-background p-3'>
-									{slowestChartData.length ? (
-										<ChartContainer
-											className='h-full w-full'
-											config={chartConfig}>
-											<BarChart
-												data={slowestChartData}
-												layout='vertical'
-												margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
-												<CartesianGrid
-													vertical={false}
-													strokeDasharray='3 3'
-													stroke='var(--border)'
-													strokeOpacity={0.4}
-												/>
-												<XAxis
-													type='number'
-													tick={{
-														fontSize: 10,
-														fill: 'var(--muted-foreground)',
-													}}
-													tickLine={false}
-													axisLine={false}
-													tickMargin={8}
-													tickFormatter={(v) => formatDuration(v)}
-												/>
-												<YAxis
-													dataKey='name'
-													type='category'
-													width={140}
-													tick={{
-														fontSize: 10,
-														fill: 'var(--muted-foreground)',
-													}}
-													tickFormatter={(v) => truncateLabel(String(v))}
-													axisLine={false}
-													tickLine={false}
-													tickMargin={8}
-												/>
-												<ChartTooltip
-													content={
-														<ChartTooltipContent
-															labelFormatter={(label) =>
-																formatDay(label as number | string)
-															}
-															formatter={(value, name) => {
-																const normalized = normalizeValue(value);
-																return name === 'avg' || name === 'max'
-																	? formatDuration(normalized)
-																	: formatCount(normalized);
-															}}
-														/>
-													}
-													cursor={false}
-												/>
-												<ChartLegend content={<ChartLegendContent />} />
-												<Bar
-													dataKey='avg'
-													fill='var(--color-avg)'
-													stroke='var(--chart-1-65)'
-													strokeWidth={1}
-													name='Avg (ms)'
-													radius={[0, 4, 4, 0]}
-												/>
-												<Bar
-													dataKey='max'
-													fill='var(--color-max)'
-													stroke='var(--chart-3-65)'
-													strokeWidth={1}
-													name='Max (ms)'
-												/>
-											</BarChart>
-										</ChartContainer>
+									{pieData.length ? (
+										pieData.map((item) => (
+											<div
+												key={item.key}
+												className='grid grid-cols-2 gap-2 px-3 py-2 text-sm'>
+												<div className='font-mono text-xs'>{item.name}</div>
+												<div className='text-right font-medium'>
+													{formatCount(item.value)}
+												</div>
+											</div>
+										))
 									) : (
-										<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
-											No slow tests yet
+										<div className='px-3 py-3 text-sm text-muted-foreground'>
+											No data
 										</div>
 									)}
 								</div>
-							)}
-						</CardContent>
-					</Card>
+							</div>
+						) : (
+							<div className='h-64 rounded-md bg-background p-3 dark:bg-[rgb(20,25,28)]'>
+								{pieData.length ? (
+									<ChartContainer
+										className='h-full w-full'
+										config={chartConfig}>
+										<PieChart>
+											<ChartTooltip content={<ChartTooltipContent />} />
+											<Pie
+												data={pieData}
+												dataKey='value'
+												nameKey='name'
+												innerRadius={55}
+												outerRadius={90}
+												paddingAngle={4}
+												stroke='none'>
+												{pieData.map((entry) => (
+													<Cell
+														key={entry.key}
+														fill={`var(--color-${entry.key})`}
+													/>
+												))}
+											</Pie>
+											<ChartLegend content={<ChartLegendContent />} />
+										</PieChart>
+									</ChartContainer>
+								) : (
+									<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
+										No data
+									</div>
+								)}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</div>
 
-					<Card>
-						<CardHeader>
-							<CardTitle>Most failing tests</CardTitle>
-							<CardDescription>Top {limit} by fail/error count</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{viewMode === 'table' ? (
-								<div className='overflow-x-auto'>
-									<div className='max-h-[240px] min-w-[520px] overflow-y-auto divide-y rounded-md border'>
-										<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground'>
-											<div className='col-span-2'>Test</div>
-											<div className='col-span-2'>Suite</div>
-											<div className='text-right'>Fail</div>
-											<div className='text-right'>Err</div>
-										</div>
-										{mostFailing.length ? (
-											mostFailing.map((t) => (
-												<div
-													key={t.testCaseId}
-													className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
-													<div className='col-span-2 truncate font-mono text-xs'>
-														{t.name}
-													</div>
-													<div className='col-span-2 truncate font-mono text-xs'>
-														{t.suiteName ?? '—'}
-													</div>
-													<div className='text-right'>{t.failedCount}</div>
-													<div className='text-right'>{t.errorCount}</div>
-												</div>
-											))
-										) : (
-											<div className='px-3 py-3 text-sm text-muted-foreground'>
-												No failing tests yet.
-											</div>
-										)}
+			<div className='grid gap-6 lg:grid-cols-2'>
+				<Card className='bg-muted text-foreground'>
+					<CardHeader>
+						<CardTitle>Slowest tests</CardTitle>
+						<CardDescription>Top {limit} by avg duration</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{viewMode === 'table' ? (
+							<div className='overflow-x-auto'>
+								<div className='max-h-[240px] min-w-[520px] overflow-y-auto divide-y rounded-md border dark:bg-[rgb(20,25,28)]'>
+									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-[rgb(20,25,28)]'>
+										<div className='col-span-2'>Test</div>
+										<div className='col-span-2'>Suite</div>
+										<div className='text-right'>Avg</div>
+										<div className='text-right'>Max</div>
 									</div>
-								</div>
-							) : (
-								<div className='h-64 rounded-md border bg-background p-3'>
-									{mostFailingChartData.length ? (
-										<ChartContainer
-											className='h-full w-full'
-											config={chartConfig}>
-											<BarChart
-												data={mostFailingChartData}
-												layout='vertical'
-												margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
-												<CartesianGrid
-													vertical={false}
-													strokeDasharray='3 3'
-													stroke='var(--border)'
-													strokeOpacity={0.4}
-												/>
-												<XAxis
-													type='number'
-													tick={{
-														fontSize: 10,
-														fill: 'var(--muted-foreground)',
-													}}
-													tickLine={false}
-													axisLine={false}
-													tickMargin={8}
-													tickFormatter={(v) => formatCount(v)}
-												/>
-												<YAxis
-													dataKey='name'
-													type='category'
-													width={140}
-													tick={{
-														fontSize: 10,
-														fill: 'var(--muted-foreground)',
-													}}
-													tickFormatter={(v) => truncateLabel(String(v))}
-													axisLine={false}
-													tickLine={false}
-													tickMargin={8}
-												/>
-												<ChartTooltip
-													content={
-														<ChartTooltipContent
-															formatter={(value) =>
-																formatCount(normalizeValue(value))
-															}
-														/>
-													}
-													cursor={false}
-												/>
-												<ChartLegend content={<ChartLegendContent />} />
-												<Bar
-													dataKey='failed'
-													stackId='a'
-													fill='var(--color-failed)'
-													stroke='var(--chart-5-65)'
-													strokeWidth={1}
-													name='Failed'
-													radius={[0, 4, 4, 0]}
-												/>
-												<Bar
-													dataKey='error'
-													stackId='a'
-													fill='var(--color-error)'
-													stroke='var(--chart-4-65)'
-													strokeWidth={1}
-													name='Error'
-												/>
-											</BarChart>
-										</ChartContainer>
+									{slowest.length ? (
+										slowest.map((t) => (
+											<div
+												key={t.testCaseId}
+												className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.name}
+												</div>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.suiteName ?? '—'}
+												</div>
+												<div className='text-right'>{ms(t.avgDurationMs)}</div>
+												<div className='text-right'>{ms(t.maxDurationMs)}</div>
+											</div>
+										))
 									) : (
-										<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
-											No failing tests yet
+										<div className='px-3 py-3 text-sm text-muted-foreground'>
+											No slow tests yet.
 										</div>
 									)}
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				</div>
+							</div>
+						) : (
+							<div className='h-64 rounded-md border border-border bg-background p-3 dark:bg-[rgb(20,25,28)]'>
+								{slowestChartData.length ? (
+									<ChartContainer
+										className='h-full w-full'
+										config={chartConfig}>
+										<BarChart
+											data={slowestChartData}
+											layout='vertical'
+											margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
+											<CartesianGrid
+												vertical={false}
+												strokeDasharray='3 3'
+												stroke='var(--border)'
+												strokeOpacity={0.4}
+											/>
+											<XAxis
+												type='number'
+												tick={{
+													fontSize: 10,
+													fill: 'var(--muted-foreground)',
+												}}
+												tickLine={false}
+												axisLine={false}
+												tickMargin={8}
+												tickFormatter={(v) => formatDuration(v)}
+											/>
+											<YAxis
+												dataKey='name'
+												type='category'
+												width={140}
+												tick={{
+													fontSize: 10,
+													fill: 'var(--muted-foreground)',
+												}}
+												tickFormatter={(v) => truncateLabel(String(v))}
+												axisLine={false}
+												tickLine={false}
+												tickMargin={8}
+											/>
+											<ChartTooltip
+												content={
+													<ChartTooltipContent
+														labelFormatter={(label) =>
+															formatDay(label as number | string)
+														}
+														formatter={(value, name) => {
+															const normalized = normalizeValue(value);
+															return name === 'avg' || name === 'max'
+																? formatDuration(normalized)
+																: formatCount(normalized);
+														}}
+													/>
+												}
+												cursor={false}
+											/>
+											<ChartLegend content={<ChartLegendContent />} />
+											<Bar
+												dataKey='avg'
+												fill='var(--color-avg)'
+												stroke='var(--chart-1-65)'
+												strokeWidth={1}
+												name='Avg (ms)'
+												radius={[0, 4, 4, 0]}
+											/>
+											<Bar
+												dataKey='max'
+												fill='var(--color-max)'
+												stroke='var(--chart-3-65)'
+												strokeWidth={1}
+												name='Max (ms)'
+											/>
+										</BarChart>
+									</ChartContainer>
+								) : (
+									<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
+										No slow tests yet
+									</div>
+								)}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+
+				<Card className='bg-muted text-foreground'>
+					<CardHeader>
+						<CardTitle>Most failing tests</CardTitle>
+						<CardDescription>Top {limit} by fail/error count</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{viewMode === 'table' ? (
+							<div className='overflow-x-auto'>
+								<div className='max-h-[240px] min-w-[520px] overflow-y-auto divide-y rounded-md border dark:bg-[rgb(20,25,28)]'>
+									<div className='grid grid-cols-6 gap-2 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground dark:bg-[rgb(20,25,28)]'>
+										<div className='col-span-2'>Test</div>
+										<div className='col-span-2'>Suite</div>
+										<div className='text-right'>Fail</div>
+										<div className='text-right'>Err</div>
+									</div>
+									{mostFailing.length ? (
+										mostFailing.map((t) => (
+											<div
+												key={t.testCaseId}
+												className='grid grid-cols-6 gap-2 px-3 py-2 text-sm'>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.name}
+												</div>
+												<div className='col-span-2 truncate font-mono text-xs'>
+													{t.suiteName ?? '—'}
+												</div>
+												<div className='text-right'>{t.failedCount}</div>
+												<div className='text-right'>{t.errorCount}</div>
+											</div>
+										))
+									) : (
+										<div className='px-3 py-3 text-sm text-muted-foreground'>
+											No failing tests yet.
+										</div>
+									)}
+								</div>
+							</div>
+						) : (
+							<div className='h-64 rounded-md border bg-background p-3 dark:bg-[rgb(20,25,28)]'>
+								{mostFailingChartData.length ? (
+									<ChartContainer
+										className='h-full w-full'
+										config={chartConfig}>
+										<BarChart
+											data={mostFailingChartData}
+											layout='vertical'
+											margin={{ top: 8, right: 16, left: 16, bottom: 4 }}>
+											<CartesianGrid
+												vertical={false}
+												strokeDasharray='3 3'
+												stroke='var(--border)'
+												strokeOpacity={0.4}
+											/>
+											<XAxis
+												type='number'
+												tick={{
+													fontSize: 10,
+													fill: 'var(--muted-foreground)',
+												}}
+												tickLine={false}
+												axisLine={false}
+												tickMargin={8}
+												tickFormatter={(v) => formatCount(v)}
+											/>
+											<YAxis
+												dataKey='name'
+												type='category'
+												width={140}
+												tick={{
+													fontSize: 10,
+													fill: 'var(--muted-foreground)',
+												}}
+												tickFormatter={(v) => truncateLabel(String(v))}
+												axisLine={false}
+												tickLine={false}
+												tickMargin={8}
+											/>
+											<ChartTooltip
+												content={
+													<ChartTooltipContent
+														formatter={(value) =>
+															formatCount(normalizeValue(value))
+														}
+													/>
+												}
+												cursor={false}
+											/>
+											<ChartLegend content={<ChartLegendContent />} />
+											<Bar
+												dataKey='failed'
+												stackId='a'
+												fill='var(--color-failed)'
+												stroke='var(--chart-5-65)'
+												strokeWidth={1}
+												name='Failed'
+												radius={[0, 4, 4, 0]}
+											/>
+											<Bar
+												dataKey='error'
+												stackId='a'
+												fill='var(--color-error)'
+												stroke='var(--chart-4-65)'
+												strokeWidth={1}
+												name='Error'
+											/>
+										</BarChart>
+									</ChartContainer>
+								) : (
+									<div className='flex h-full items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground'>
+										No failing tests yet
+									</div>
+								)}
+							</div>
+						)}
+					</CardContent>
+				</Card>
 			</div>
 		</div>
 	);

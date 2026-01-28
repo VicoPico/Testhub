@@ -32,10 +32,16 @@ export function SidebarNav(props: SidebarNavProps) {
 	return (
 		<div className='flex h-full flex-col px-3 py-4'>
 			{/* Header */}
-			<div className='mb-4 flex items-center justify-between px-2'>
-				{!collapsed && (
-					<span className='text-sm font-semibold tracking-tight'>Testhub</span>
-				)}
+			<div className='mb-4 flex min-h-8 items-center justify-between px-2'>
+				<span
+					className={[
+						'text-sm font-semibold tracking-tight transition-opacity',
+						collapsed
+							? 'opacity-0 pointer-events-none w-0 overflow-hidden'
+							: 'opacity-100',
+					].join(' ')}>
+					Testhub
+				</span>
 
 				{onToggle && (
 					<Button
