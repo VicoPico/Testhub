@@ -26,12 +26,20 @@ function formatDate(iso: string) {
 	return d.toLocaleString();
 }
 
-function statusVariant(
-	status: RunListItem['status'],
-): 'default' | 'secondary' | 'destructive' {
-	if (status === 'FAILED') return 'destructive';
-	if (status === 'COMPLETED') return 'default';
-	return 'secondary';
+function runStatusBadgeClass(status: RunListItem['status']) {
+	switch (status) {
+		case 'COMPLETED':
+			return 'border-[color:var(--test-passed)] text-[color:var(--test-passed)] bg-[color-mix(in_oklch,var(--test-passed)_16%,transparent)]';
+		case 'FAILED':
+			return 'border-[color:var(--test-failed)] text-[color:var(--test-failed)] bg-[color-mix(in_oklch,var(--test-failed)_16%,transparent)]';
+		case 'RUNNING':
+		case 'QUEUED':
+			return 'border-[color:var(--test-paused)] text-[color:var(--test-paused)] bg-[color-mix(in_oklch,var(--test-paused)_16%,transparent)]';
+		case 'CANCELED':
+			return 'border-[color:var(--test-skipped)] text-[color:var(--test-skipped)] bg-[color-mix(in_oklch,var(--test-skipped)_16%,transparent)]';
+		default:
+			return 'border-muted text-muted-foreground bg-transparent';
+	}
 }
 
 type StatusFilter = 'ALL' | RunStatus;
@@ -529,7 +537,11 @@ export function RunsPage() {
 									<div className='col-span-3'>{formatDate(r.createdAt)}</div>
 
 									<div className='col-span-2'>
-										<Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+										<Badge
+											variant='outline'
+											className={runStatusBadgeClass(r.status)}>
+											{r.status}
+										</Badge>
 									</div>
 
 									<div className='col-span-3 truncate text-muted-foreground'>

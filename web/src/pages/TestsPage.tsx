@@ -37,12 +37,19 @@ function formatDate(iso: string) {
 	return new Date(iso).toLocaleString();
 }
 
-function testStatusVariant(
-	status: StatusFilter,
-): 'default' | 'secondary' | 'destructive' {
-	if (status === 'FAILED' || status === 'ERROR') return 'destructive';
-	if (status === 'PASSED') return 'default';
-	return 'secondary';
+function testStatusBadgeClass(status?: StatusFilter | null) {
+	switch (status) {
+		case 'PASSED':
+			return 'border-[color:var(--test-passed)] text-[color:var(--test-passed)] bg-[color-mix(in_oklch,var(--test-passed)_16%,transparent)]';
+		case 'FAILED':
+			return 'border-[color:var(--test-failed)] text-[color:var(--test-failed)] bg-[color-mix(in_oklch,var(--test-failed)_16%,transparent)]';
+		case 'ERROR':
+			return 'border-[color:var(--test-error)] text-[color:var(--test-error)] bg-[color-mix(in_oklch,var(--test-error)_16%,transparent)]';
+		case 'SKIPPED':
+			return 'border-[color:var(--test-skipped)] text-[color:var(--test-skipped)] bg-[color-mix(in_oklch,var(--test-skipped)_16%,transparent)]';
+		default:
+			return 'border-muted text-muted-foreground bg-transparent';
+	}
 }
 
 export function TestsPage() {
@@ -185,7 +192,7 @@ export function TestsPage() {
 	const passRateChartConfig: ChartConfig = {
 		passed: {
 			label: 'Passed',
-			theme: { light: 'var(--chart-2-40)', dark: 'var(--chart-2-40)' },
+			theme: { light: 'var(--test-passed)', dark: 'var(--test-passed)' },
 		},
 	};
 
@@ -359,7 +366,8 @@ export function TestsPage() {
 										</div>
 										<div className='col-span-2'>
 											<Badge
-												variant={testStatusVariant(
+												variant='outline'
+												className={testStatusBadgeClass(
 													(last ?? 'ALL') as StatusFilter,
 												)}>
 												{last ? last : '—'}
@@ -472,10 +480,16 @@ export function TestsPage() {
 											<Badge variant='default'>
 												Pass rate {stats.passRate}%
 											</Badge>
-											<Badge variant='destructive'>
+											<Badge
+												variant='outline'
+												className={testStatusBadgeClass('FAILED')}>
 												Failed {stats.failed + stats.error}
 											</Badge>
-											<Badge variant='secondary'>Skipped {stats.skipped}</Badge>
+											<Badge
+												variant='outline'
+												className={testStatusBadgeClass('SKIPPED')}>
+												Skipped {stats.skipped}
+											</Badge>
 											{stats.avgDurationMs != null ? (
 												<Badge variant='outline'>
 													Avg {stats.avgDurationMs}ms
@@ -493,7 +507,9 @@ export function TestsPage() {
 														key={h.id}
 														className='flex items-center justify-between gap-2 text-xs'>
 														<div className='flex items-center gap-2 min-w-0'>
-															<Badge variant={testStatusVariant(h.status)}>
+															<Badge
+																variant='outline'
+																className={testStatusBadgeClass(h.status)}>
 																{h.status}
 															</Badge>
 															<span className='text-muted-foreground truncate'>
