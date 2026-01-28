@@ -25,34 +25,34 @@ import { PageError } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
 import { useAuth } from '@/lib/useAuth';
 
-function runStatusBadgeVariant(status: RunDetails['status']) {
+function runStatusBadgeClass(status: RunDetails['status']) {
 	switch (status) {
 		case 'COMPLETED':
-			return 'default';
+			return 'border-[color:var(--test-passed)] text-[color:var(--test-passed)] bg-[color-mix(in_oklch,var(--test-passed)_16%,transparent)]';
 		case 'FAILED':
-			return 'destructive';
+			return 'border-[color:var(--test-failed)] text-[color:var(--test-failed)] bg-[color-mix(in_oklch,var(--test-failed)_16%,transparent)]';
 		case 'RUNNING':
 		case 'QUEUED':
-			return 'secondary';
+			return 'border-[color:var(--test-paused)] text-[color:var(--test-paused)] bg-[color-mix(in_oklch,var(--test-paused)_16%,transparent)]';
 		case 'CANCELED':
-			return 'outline';
+			return 'border-[color:var(--test-skipped)] text-[color:var(--test-skipped)] bg-[color-mix(in_oklch,var(--test-skipped)_16%,transparent)]';
 		default:
-			return 'secondary';
+			return 'border-muted text-muted-foreground bg-transparent';
 	}
 }
 
-function testStatusBadgeVariant(status: TestStatus) {
+function testStatusBadgeClass(status: TestStatus) {
 	switch (status) {
 		case 'PASSED':
-			return 'default';
+			return 'border-[color:var(--test-passed)] text-[color:var(--test-passed)] bg-[color-mix(in_oklch,var(--test-passed)_16%,transparent)]';
 		case 'FAILED':
-			return 'destructive';
-		case 'SKIPPED':
-			return 'secondary';
+			return 'border-[color:var(--test-failed)] text-[color:var(--test-failed)] bg-[color-mix(in_oklch,var(--test-failed)_16%,transparent)]';
 		case 'ERROR':
-			return 'destructive';
+			return 'border-[color:var(--test-error)] text-[color:var(--test-error)] bg-[color-mix(in_oklch,var(--test-error)_16%,transparent)]';
+		case 'SKIPPED':
+			return 'border-[color:var(--test-skipped)] text-[color:var(--test-skipped)] bg-[color-mix(in_oklch,var(--test-skipped)_16%,transparent)]';
 		default:
-			return 'secondary';
+			return 'border-muted text-muted-foreground bg-transparent';
 	}
 }
 
@@ -220,7 +220,9 @@ export function RunDetailsPage() {
 								{run.id}
 							</span>
 						</h1>
-						<Badge variant={runStatusBadgeVariant(run.status)}>
+						<Badge
+							variant='outline'
+							className={runStatusBadgeClass(run.status)}>
 							{run.status}
 						</Badge>
 					</div>
@@ -326,7 +328,9 @@ export function RunDetailsPage() {
 									<div key={r.id} className='px-4 py-3'>
 										<div className='grid grid-cols-12 items-start gap-2'>
 											<div className='col-span-2'>
-												<Badge variant={testStatusBadgeVariant(r.status)}>
+												<Badge
+													variant='outline'
+													className={testStatusBadgeClass(r.status)}>
 													{r.status}
 												</Badge>
 											</div>

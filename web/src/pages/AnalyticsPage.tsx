@@ -34,6 +34,7 @@ import {
 	BarChart,
 	CartesianGrid,
 	Cell,
+	Label,
 	Pie,
 	PieChart,
 	XAxis,
@@ -85,27 +86,27 @@ function truncateLabel(label: string) {
 const chartConfig: ChartConfig = {
 	passed: {
 		label: 'Passed',
-		theme: { light: 'var(--chart-2-40)', dark: 'var(--chart-2-40)' },
+		theme: { light: 'var(--test-passed)', dark: 'var(--test-passed)' },
 	},
 	failed: {
 		label: 'Failed',
-		theme: { light: 'var(--chart-5-40)', dark: 'var(--chart-5-40)' },
+		theme: { light: 'var(--test-failed)', dark: 'var(--test-failed)' },
 	},
 	error: {
 		label: 'Error',
-		theme: { light: 'var(--chart-4-40)', dark: 'var(--chart-4-40)' },
+		theme: { light: 'var(--test-error)', dark: 'var(--test-error)' },
 	},
 	skipped: {
 		label: 'Skipped',
-		theme: { light: 'var(--chart-3-40)', dark: 'var(--chart-3-40)' },
+		theme: { light: 'var(--test-skipped)', dark: 'var(--test-skipped)' },
 	},
 	avg: {
 		label: 'Avg (ms)',
-		theme: { light: 'var(--chart-1-40)', dark: 'var(--chart-1-40)' },
+		theme: { light: 'var(--test-slow)', dark: 'var(--test-slow)' },
 	},
 	max: {
 		label: 'Max (ms)',
-		theme: { light: 'var(--chart-3-40)', dark: 'var(--chart-3-40)' },
+		theme: { light: 'var(--test-paused)', dark: 'var(--test-paused)' },
 	},
 };
 
@@ -166,6 +167,9 @@ export function AnalyticsPage() {
 			{ passed: 0, failed: 0, error: 0, skipped: 0 },
 		);
 	}, [timeseriesChartData]);
+
+	const totalTests =
+		totals.passed + totals.failed + totals.error + totals.skipped;
 
 	const pieData = useMemo(
 		() =>
@@ -347,7 +351,7 @@ export function AnalyticsPage() {
 				<Card className='bg-muted text-foreground'>
 					<CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
 						<div>
-							<CardTitle>Failures over time</CardTitle>
+							<CardTitle>Test results over time</CardTitle>
 							<CardDescription>Daily totals by status</CardDescription>
 						</div>
 						{viewMode === 'chart' ? (
@@ -460,30 +464,33 @@ export function AnalyticsPage() {
 													dataKey='passed'
 													stackId='a'
 													fill='var(--color-passed)'
-													stroke='var(--chart-2-65)'
+													stroke='var(--color-passed)'
 													strokeWidth={1}
-													radius={[3, 3, 0, 0]}
+													radius={[4, 4, 0, 0]}
 												/>
 												<Bar
 													dataKey='failed'
 													stackId='a'
 													fill='var(--color-failed)'
-													stroke='var(--chart-5-65)'
+													stroke='var(--color-failed)'
 													strokeWidth={1}
+													radius={[4, 4, 0, 0]}
 												/>
 												<Bar
 													dataKey='error'
 													stackId='a'
 													fill='var(--color-error)'
-													stroke='var(--chart-4-65)'
+													stroke='var(--color-error)'
 													strokeWidth={1}
+													radius={[4, 4, 0, 0]}
 												/>
 												<Bar
 													dataKey='skipped'
 													stackId='a'
 													fill='var(--color-skipped)'
-													stroke='var(--chart-3-65)'
+													stroke='var(--color-skipped)'
 													strokeWidth={1}
+													radius={[4, 4, 0, 0]}
 												/>
 											</BarChart>
 										) : (
@@ -611,7 +618,7 @@ export function AnalyticsPage() {
 													dataKey='passed'
 													stackId='a'
 													fill='url(#fillPassed)'
-													stroke='var(--chart-2-65)'
+													stroke='var(--color-passed)'
 													strokeWidth={1}
 													type='monotone'
 												/>
@@ -619,7 +626,7 @@ export function AnalyticsPage() {
 													dataKey='failed'
 													stackId='a'
 													fill='url(#fillFailed)'
-													stroke='var(--chart-5-65)'
+													stroke='var(--color-failed)'
 													strokeWidth={1}
 													type='monotone'
 												/>
@@ -627,7 +634,7 @@ export function AnalyticsPage() {
 													dataKey='error'
 													stackId='a'
 													fill='url(#fillError)'
-													stroke='var(--chart-4-65)'
+													stroke='var(--color-error)'
 													strokeWidth={1}
 													type='monotone'
 												/>
@@ -635,7 +642,7 @@ export function AnalyticsPage() {
 													dataKey='skipped'
 													stackId='a'
 													fill='url(#fillSkipped)'
-													stroke='var(--chart-3-65)'
+													stroke='var(--color-skipped)'
 													strokeWidth={1}
 													type='monotone'
 												/>
@@ -653,8 +660,8 @@ export function AnalyticsPage() {
 				</Card>
 
 				<Card className='bg-muted text-foreground'>
-					<CardHeader>
-						<CardTitle>Failures breakdown</CardTitle>
+					<CardHeader className='space-y-0'>
+						<CardTitle>Test results overview</CardTitle>
 						<CardDescription>Totals by status</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -699,6 +706,36 @@ export function AnalyticsPage() {
 												outerRadius={90}
 												paddingAngle={4}
 												stroke='none'>
+												<Label
+													content={({ viewBox }) => {
+														if (!viewBox || !('cx' in viewBox)) return null;
+														const { cx, cy } = viewBox as {
+															cx: number;
+															cy: number;
+														};
+														const yOffset = cy - 14;
+														return (
+															<g transform={`translate(${cx}, ${yOffset})`}>
+																<text
+																	textAnchor='middle'
+																	dominantBaseline='middle'>
+																	<tspan
+																		x={0}
+																		dy='0'
+																		className='fill-foreground text-2xl font-semibold'>
+																		{formatCount(totalTests)}
+																	</tspan>
+																	<tspan
+																		x={0}
+																		dy='18'
+																		className='fill-muted-foreground text-xs'>
+																		tests
+																	</tspan>
+																</text>
+															</g>
+														);
+													}}
+												/>
 												{pieData.map((entry) => (
 													<Cell
 														key={entry.key}
@@ -722,7 +759,7 @@ export function AnalyticsPage() {
 
 			<div className='grid gap-6 lg:grid-cols-2'>
 				<Card className='bg-muted text-foreground'>
-					<CardHeader>
+					<CardHeader className='space-y-0'>
 						<CardTitle>Slowest tests</CardTitle>
 						<CardDescription>Top {limit} by avg duration</CardDescription>
 					</CardHeader>
@@ -818,7 +855,7 @@ export function AnalyticsPage() {
 											<Bar
 												dataKey='avg'
 												fill='var(--color-avg)'
-												stroke='var(--chart-1-65)'
+												stroke='var(--color-avg)'
 												strokeWidth={1}
 												name='Avg (ms)'
 												radius={[0, 4, 4, 0]}
@@ -826,9 +863,10 @@ export function AnalyticsPage() {
 											<Bar
 												dataKey='max'
 												fill='var(--color-max)'
-												stroke='var(--chart-3-65)'
+												stroke='var(--color-max)'
 												strokeWidth={1}
 												name='Max (ms)'
+												radius={[0, 4, 4, 0]}
 											/>
 										</BarChart>
 									</ChartContainer>
@@ -843,7 +881,7 @@ export function AnalyticsPage() {
 				</Card>
 
 				<Card className='bg-muted text-foreground'>
-					<CardHeader>
+					<CardHeader className='space-y-0'>
 						<CardTitle>Most failing tests</CardTitle>
 						<CardDescription>Top {limit} by fail/error count</CardDescription>
 					</CardHeader>
@@ -934,7 +972,7 @@ export function AnalyticsPage() {
 												dataKey='failed'
 												stackId='a'
 												fill='var(--color-failed)'
-												stroke='var(--chart-5-65)'
+												stroke='var(--color-failed)'
 												strokeWidth={1}
 												name='Failed'
 												radius={[0, 4, 4, 0]}
@@ -943,9 +981,10 @@ export function AnalyticsPage() {
 												dataKey='error'
 												stackId='a'
 												fill='var(--color-error)'
-												stroke='var(--chart-4-65)'
+												stroke='var(--color-error)'
 												strokeWidth={1}
 												name='Error'
+												radius={[0, 4, 4, 0]}
 											/>
 										</BarChart>
 									</ChartContainer>
