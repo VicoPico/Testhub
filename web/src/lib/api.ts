@@ -1,4 +1,5 @@
 import { getApiKey } from './auth';
+import { setFlashBanner } from './flash';
 import type { components, operations, paths } from '@/gen/openapi';
 
 const API_BASE =
@@ -54,6 +55,16 @@ function pickApiKey(): string | undefined {
 	return stored ?? DEV_API_KEY;
 }
 
+function isAuthPath(path: string): boolean {
+	return path.startsWith('/auth/');
+}
+
+function isProjectScopedPath(path: string) {
+	const normalized = path.split('?')[0] ?? '';
+	if (!normalized.startsWith('/projects/')) return false;
+	return normalized.length > '/projects/'.length;
+}
+
 /**
  * openapi-typescript uses numeric status keys: 200, 201, etc.
  */
@@ -83,8 +94,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 	const headers: HeadersInit = {
 		...(init?.headers ?? {}),
-		...(apiKey ? { 'x-api-key': apiKey } : {}),
 	};
+
+	if (apiKey && !isAuthPath(path)) {
+		(headers as Record<string, string>)['x-api-key'] = apiKey;
+	}
 
 	const hasBody = init?.body != null;
 	if (hasBody) {
@@ -92,9 +106,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 			(headers as Record<string, string>)['content-type'] ?? 'application/json';
 	}
 
-	const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+	const res = await fetch(`${API_BASE}${path}`, {
+		...init,
+		headers,
+		credentials: 'include',
+	});
 
 	if (!res.ok) {
+		if (res.status === 404 && isProjectScopedPath(path)) {
+			if (typeof window !== 'undefined') {
+				try {
+					localStorage.removeItem('lastProjectId');
+				} catch {
+					// ignore
+				}
+				setFlashBanner('That project no longer exists.');
+				window.dispatchEvent(new CustomEvent('testhub.projectNotFound'));
+			}
+		}
+
 		const details = await parseErrorBody(res);
 
 		let message = `${res.status} ${res.statusText}`;
@@ -215,6 +245,18 @@ export type AnalyticsMostFailingTestsQuery = NonNullable<
 	operations['getAnalyticsMostFailingTests']['parameters']['query']
 >;
 
+// Auth
+export type AuthConfigResponse = {
+	allowSignup: boolean;
+};
+
+export type AuthMeResponse = {
+	user: { id: string; email?: string } | null;
+	org: { id: string; slug?: string } | null;
+	authStrategy: 'apiKey' | 'session';
+	emailVerified: boolean;
+};
+
 // ---------- Typed API functions ----------
 
 // Path aliases (OpenAPI paths)
@@ -235,11 +277,75 @@ type PathAnalyticsMostFailingTests =
 type PathProjects = '/projects';
 type PathProject = '/projects/{projectId}';
 
+type PathAuthConfig = '/auth/config';
+type PathAuthRegister = '/auth/register';
+type PathAuthLogin = '/auth/login';
+type PathAuthMe = '/auth/me';
+type PathAuthLogout = '/auth/logout';
+type PathAuthForgot = '/auth/password/forgot';
+type PathAuthReset = '/auth/password/reset';
+type PathAuthResend = '/auth/resend-verification';
+
 // ----- Projects -----
 
 export function listProjects() {
 	type Res = ResponseBody<PathProjects, 'get', 200>;
 	return apiFetch<Res>('/projects');
+}
+
+export function getAuthConfig() {
+	return apiFetch<AuthConfigResponse>('/auth/config');
+}
+
+export function registerEmailPassword(body: {
+	email: string;
+	password: string;
+	fullName?: string;
+}) {
+	return apiFetch<{ ok: true }>('/auth/register', {
+		method: 'POST',
+		body: JSON.stringify(body),
+	});
+}
+
+export function loginEmailPassword(body: { email: string; password: string }) {
+	return apiFetch<{ ok: true }>('/auth/login', {
+		method: 'POST',
+		body: JSON.stringify(body),
+	});
+}
+
+export function getAuthMe() {
+	return apiFetch<AuthMeResponse>('/auth/me');
+}
+
+export function logoutSession() {
+	return apiFetch<void>('/auth/logout', { method: 'POST' });
+}
+
+export function forgotPassword(body: { email: string }) {
+	return apiFetch<void>('/auth/password/forgot', {
+		method: 'POST',
+		body: JSON.stringify(body),
+	});
+}
+
+export function resetPassword(body: { token: string; newPassword: string }) {
+	return apiFetch<void>('/auth/password/reset', {
+		method: 'POST',
+		body: JSON.stringify(body),
+	});
+}
+
+export function resendVerification(body: { email: string }) {
+	return apiFetch<void>('/auth/resend-verification', {
+		method: 'POST',
+		body: JSON.stringify(body),
+	});
+}
+
+export function getVerifyEmailUrl(token: string) {
+	return `${API_BASE}/auth/verify-email?token=${encodeURIComponent(token)}`;
 }
 
 export function createProject(body: CreateProjectRequest) {

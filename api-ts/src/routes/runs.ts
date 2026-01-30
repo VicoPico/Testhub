@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { requireRun } from '../lib/requireRun';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
@@ -45,7 +45,7 @@ const BatchResultsBody = z.object({
 			suiteName: z.string().optional(),
 			tags: z.array(z.string()).optional(),
 			meta: z.record(z.string(), z.unknown()).optional(),
-		})
+		}),
 	),
 });
 

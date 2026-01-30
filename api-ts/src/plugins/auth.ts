@@ -3,10 +3,67 @@ import type { FastifyPluginAsync } from 'fastify';
 import { parseApiKey, sha256Hex, safeEqualHex } from '../lib/apiKey';
 
 export const authPlugin: FastifyPluginAsync = fp(async (app) => {
-	app.addHook('onRequest', async (req) => {
-		const header = req.headers['x-api-key'];
+	app.addHook('onRequest', async (req, reply) => {
+		if (req.ctx.auth.isAuthenticated) return;
 
-		// No header -> remain anonymous (public routes still work)
+		// Session cookie auth (preferred when valid)
+		const rawCookie = req.cookies?.[app.config.AUTH_COOKIE_NAME];
+		if (rawCookie) {
+			const unsigned = req.unsignCookie(rawCookie);
+			if (!unsigned.valid) {
+				reply.clearCookie(app.config.AUTH_COOKIE_NAME, { path: '/' });
+			}
+
+			const sessionId = unsigned.value;
+			if (sessionId) {
+				const now = new Date();
+				const session = await app.prisma.session.findUnique({
+					where: { id: sessionId },
+					select: {
+						id: true,
+						expiresAt: true,
+						revokedAt: true,
+						orgId: true,
+						userId: true,
+						org: { select: { id: true, slug: true } },
+						user: { select: { id: true, email: true } },
+					},
+				});
+
+				if (session && !session.revokedAt && session.expiresAt > now) {
+					req.ctx.auth = {
+						isAuthenticated: true,
+						strategy: 'session',
+						session: { id: session.id },
+						orgId: session.orgId,
+						userId: session.userId,
+					};
+
+					req.ctx.org = session.org
+						? { id: session.org.id, slug: session.org.slug }
+						: { id: session.orgId };
+
+					req.ctx.user = session.user
+						? { id: session.user.id, email: session.user.email }
+						: { id: session.userId };
+
+					app.prisma.session
+						.update({ where: { id: session.id }, data: { lastSeenAt: now } })
+						.catch((err: unknown) => {
+							req.log.warn(
+								{ err, sessionId: session.id },
+								'Failed to update Session.lastSeenAt',
+							);
+						});
+
+					return;
+				}
+
+				reply.clearCookie(app.config.AUTH_COOKIE_NAME, { path: '/' });
+			}
+		}
+
+		const header = req.headers['x-api-key'];
 		if (header == null) return;
 
 		// Fastify headers can be string | string[] | undefined
@@ -62,8 +119,8 @@ export const authPlugin: FastifyPluginAsync = fp(async (app) => {
 		req.ctx.user = apiKey.user
 			? { id: apiKey.user.id, email: apiKey.user.email }
 			: apiKey.userId
-			? { id: apiKey.userId }
-			: null;
+				? { id: apiKey.userId }
+				: null;
 
 		// best-effort lastUsedAt
 		app.prisma.apiKey
@@ -71,7 +128,7 @@ export const authPlugin: FastifyPluginAsync = fp(async (app) => {
 			.catch((err) => {
 				req.log.warn(
 					{ err, apiKeyId: apiKey.id },
-					'Failed to update ApiKey.lastUsedAt'
+					'Failed to update ApiKey.lastUsedAt',
 				);
 			});
 	});

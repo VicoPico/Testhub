@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
-
+import type { Prisma } from '@prisma/client';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
 

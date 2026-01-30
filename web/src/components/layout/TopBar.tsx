@@ -9,7 +9,13 @@ import { SidebarNav } from './SidebarNav';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { searchProject, type SearchResponse } from '@/lib/api';
 
-export function TopBar(props: { projectId?: string }) {
+export function TopBar(props: {
+	projectId?: string;
+	projectLabel?: string;
+	badgeText: string;
+	legendText: string;
+	isProjectSelected: boolean;
+}) {
 	const pageTitle = usePageTitle();
 	const [mobileOpen, setMobileOpen] = React.useState(false);
 	const [query, setQuery] = React.useState('');
@@ -80,8 +86,15 @@ export function TopBar(props: { projectId?: string }) {
 					<div className='min-w-0'>
 						<div className='flex items-center gap-2 min-w-0'>
 							<span className='font-semibold tracking-tight'>Testhub</span>
-							<Badge variant='secondary' className='truncate max-w-[140px]'>
-								{props.projectId ?? 'Select project'}
+							<Badge
+								variant='secondary'
+								className={[
+									'inline-flex items-center min-w-[140px] md:min-w-[160px]',
+									props.isProjectSelected
+										? 'truncate max-w-[60vw] md:max-w-[320px]'
+										: '',
+								].join(' ')}>
+								{props.badgeText}
 							</Badge>
 						</div>
 						<div className='text-xs text-muted-foreground truncate'>
@@ -197,7 +210,7 @@ export function TopBar(props: { projectId?: string }) {
 						</div>
 					) : (
 						<div className='w-full max-w-md text-xs text-muted-foreground'>
-							Select a project to search.
+							{props.legendText}
 						</div>
 					)}
 				</div>

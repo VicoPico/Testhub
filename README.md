@@ -50,6 +50,8 @@ Testhub is a fast, developer-focused platform to ingest, store, and explore auto
 
 ### Setup
 
+Note: `argon2` is a native dependency. The root package.json includes pnpm config to allow its build scripts. If you installed dependencies before this change, reinstall dependencies or rebuild so the native bindings are built.
+
 1. Clone the repository:
 
 ```bash
@@ -71,6 +73,24 @@ pnpm install
 pnpm prisma:generate
 pnpm prisma:migrate
 pnpm seed  # Creates test organization and API key
+```
+
+### Database migrations (local dev)
+
+Auth now depends on new database columns and tables (password hashing, sessions, and verification tokens). If your local database is missing these, the API will fail fast on startup.
+There is also an idempotent cleanup migration to ensure the TestCase tags GIN index exists.
+
+Run Prisma from the api-ts package (either from within api-ts or via pnpm -C api-ts):
+
+```bash
+pnpm -C api-ts prisma generate
+pnpm -C api-ts prisma migrate dev
+```
+
+If your local schema is out of sync and you are OK wiping local data (dev only):
+
+```bash
+pnpm -C api-ts prisma migrate reset
 ```
 
 4. Start the backend server:
