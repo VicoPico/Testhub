@@ -96,6 +96,7 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 	// Note: we skip /docs + swagger assets.
 	app.addHook('preValidation', async (req) => {
 		if (req.url.startsWith('/docs')) return;
+		if (req.url.startsWith('/auth')) return;
 
 		const method = req.method.toUpperCase();
 		if (!METHODS.has(method) || method === 'HEAD') return;
@@ -118,54 +119,6 @@ export const openapiContractPlugin: FastifyPluginAsync = fp(async (app) => {
 			throw app.httpErrors.badRequest('OpenAPI request validation failed', {
 				errors: result.errors,
 			});
-		}
-	});
-
-	// Contract check: ensure every spec operation exists in Fastify
-	// Request validation against OpenAPI (params/query/body)
-	// Note: we skip /docs + swagger assets.
-	app.addHook('preValidation', async (req) => {
-		// Skip swagger-ui + spec routes
-		if (req.url.startsWith('/docs')) return;
-
-		// TEMP: skip validation for project routes while we debug the hang.
-		// They are still fully protected by requireAuth + Zod + Prisma.
-		if (req.url.startsWith('/projects')) {
-			req.log.info(
-				{ url: req.url, method: req.method },
-				'skipping OpenAPI validation for /projects*'
-			);
-			return;
-		}
-
-		const method = req.method.toUpperCase();
-		if (!METHODS.has(method) || method === 'HEAD') return;
-
-		// Build a RequestObject for openapi-backend
-		const fullUrl = new URL(req.url, 'http://localhost'); // base is irrelevant
-		const requestObject = {
-			method,
-			path: fullUrl.pathname,
-			query: toPlainQuery(fullUrl.searchParams),
-			headers: req.headers as Record<string, any>,
-			body: req.body as any,
-		};
-
-		// If this request doesn’t match an OpenAPI operation, don’t validate it here.
-		try {
-			oas.matchOperation(requestObject as any);
-		} catch {
-			return;
-		}
-
-		const validate = oas.validateRequest(requestObject as any);
-		if (validate && validate.errors && validate.errors.length) {
-			throw req.server.httpErrors.badRequest(
-				'OpenAPI request validation failed',
-				{
-					errors: validate.errors,
-				}
-			);
 		}
 	});
 });

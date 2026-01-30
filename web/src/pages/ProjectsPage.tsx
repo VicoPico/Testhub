@@ -8,7 +8,9 @@ import {
 	createProject,
 	deleteProject,
 } from '@/lib/api';
+import { getAndClearFlashBanner } from '@/lib/flash';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageError, PageLoading } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
@@ -35,6 +37,7 @@ export function ProjectsPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
+	const [flashBanner, setFlashBanner] = React.useState<string | null>(null);
 
 	// Create form state
 	const [name, setName] = React.useState('');
@@ -75,6 +78,8 @@ export function ProjectsPage() {
 	}, [hasApiKey]);
 
 	React.useEffect(() => {
+		const banner = getAndClearFlashBanner();
+		if (banner) setFlashBanner(banner);
 		void refresh();
 	}, [refresh, apiKey]);
 
@@ -151,6 +156,19 @@ export function ProjectsPage() {
 
 	return (
 		<div className='space-y-6'>
+			{flashBanner ? (
+				<Card>
+					<CardContent className='flex items-center justify-between gap-3 py-3'>
+						<div className='text-sm text-foreground'>{flashBanner}</div>
+						<Button
+							variant='ghost'
+							size='sm'
+							onClick={() => setFlashBanner(null)}>
+							Dismiss
+						</Button>
+					</CardContent>
+				</Card>
+			) : null}
 			{confirmProject ? (
 				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
 					<div className='w-full max-w-xl rounded-lg border bg-muted dark:bg-muted p-5 shadow-lg'>

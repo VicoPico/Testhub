@@ -1,0 +1,10 @@
+{
+	"name": "testhub",
+	"private": true,
+	"packageManager": "pnpm@10.26.0",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"argon2"
+		]
+	}
+}

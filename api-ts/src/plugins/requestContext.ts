@@ -15,6 +15,15 @@ export type AuthContext =
 			};
 			orgId: string;
 			userId: string | null;
+	  }
+	| {
+			isAuthenticated: true;
+			strategy: 'session';
+			session: {
+				id: string;
+			};
+			orgId: string;
+			userId: string;
 	  };
 
 export type RequestContext = {

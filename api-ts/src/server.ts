@@ -1,7 +1,9 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
-import { openapiContractPlugin } from './plugins/openapiContract';
+import fp from 'fastify-plugin';
+import cookie from '@fastify/cookie';
 
+import { openapiContractPlugin } from './plugins/openapiContract';
 import { envPlugin } from './plugins/env';
 import { corsPlugin } from './plugins/cors';
 import { prismaPlugin } from './plugins/prisma';
@@ -14,6 +16,20 @@ import { projectRoutes } from './routes/projects';
 import { testRoutes } from './routes/tests';
 import { analyticsRoutes } from './routes/analytics';
 import { searchRoutes } from './routes/search';
+import { authRoutes } from './routes/auth';
+
+/**
+ * Cookie plugin must run AFTER envPlugin
+ * because it needs app.config.AUTH_COOKIE_SECRET
+ */
+const authCookiePlugin = fp(async (app) => {
+	await app.register(cookie, {
+		secret: app.config.AUTH_COOKIE_SECRET,
+		parseOptions: {
+			httpOnly: true,
+		},
+	});
+});
 
 export function buildApp() {
 	const app = Fastify({ logger: true });
@@ -25,8 +41,11 @@ export function buildApp() {
 	// OpenAPI contract + /docs + request validation
 	app.register(openapiContractPlugin);
 
-	// Needs envPlugin (CORS_ORIGIN)
+	// Needs envPlugin (WEB_APP_URL)
 	app.register(corsPlugin);
+
+	// Cookie parsing/signing for session auth
+	app.register(authCookiePlugin);
 
 	// DB + request context + auth
 	app.register(prismaPlugin);
@@ -40,9 +59,9 @@ export function buildApp() {
 	app.register(testRoutes);
 	app.register(analyticsRoutes);
 	app.register(searchRoutes);
+	app.register(authRoutes);
 
-	// Central error handler so OpenAPI validation / httpErrors
-	// all return a consistent shape that matches ErrorResponse.
+	// Central error handler
 	app.setErrorHandler((err, _req, reply) => {
 		const anyErr = err as any;
 

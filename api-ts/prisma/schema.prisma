@@ -39,6 +39,7 @@ model Organization {
   memberships Membership[]
   projects    Project[]
   apiKeys     ApiKey[]
+  sessions    Session[]
 
   @@index([createdAt])
 }
@@ -46,6 +47,9 @@ model Organization {
 model User {
   id        String       @id @default(cuid())
   email     String       @unique
+  githubId  String?      @unique
+  passwordHash String?
+  emailVerifiedAt DateTime?
   fullName  String?
   nickname  String?
   createdAt DateTime     @default(now())
@@ -54,6 +58,9 @@ model User {
   memberships Membership[]
   apiKeys     ApiKey[]
   createdRuns TestRun[]   @relation("RunsCreatedBy")
+  sessions    Session[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
 
   @@index([createdAt])
 }
@@ -114,6 +121,53 @@ model ApiKey {
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+model Session {
+  id         String   @id
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime?
+
+  userId     String
+  orgId      String
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model EmailVerificationToken {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  consumedAt DateTime?
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  consumedAt DateTime?
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model TestCase {
