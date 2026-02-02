@@ -14,6 +14,7 @@ import {
 
 import {
 	ApiError,
+	getProject,
 	getRun,
 	listRunResults,
 	type RunDetails,
@@ -78,6 +79,7 @@ export function RunDetailsPage() {
 	const [run, setRun] = React.useState<RunDetails | null>(null);
 	const [results, setResults] = React.useState<RunResultItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
+	const [projectName, setProjectName] = React.useState<string | null>(null);
 
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
@@ -126,6 +128,26 @@ export function RunDetailsPage() {
 
 		void refresh();
 	}, [pid, rid, hasApiKey, refresh]);
+
+	React.useEffect(() => {
+		if (!pid || !hasApiKey) {
+			setProjectName(null);
+			return;
+		}
+		let cancelled = false;
+		getProject(pid)
+			.then((project) => {
+				if (cancelled) return;
+				setProjectName(project.name);
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setProjectName(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [pid, hasApiKey]);
 
 	const filteredResults =
 		statusFilter === 'ALL'
@@ -228,7 +250,7 @@ export function RunDetailsPage() {
 					</div>
 					<p className='text-sm text-muted-foreground'>
 						Created {formatDate(run.createdAt)} • Project{' '}
-						<span className='font-mono'>{pid}</span>
+						<span className='font-medium'>{projectName ?? pid}</span>
 					</p>
 				</div>
 

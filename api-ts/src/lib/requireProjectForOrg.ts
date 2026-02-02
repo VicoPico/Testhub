@@ -30,7 +30,7 @@ function looksLikeId(value: string) {
 export async function requireProjectForOrg(
 	app: FastifyInstance,
 	projectIdOrSlug: string,
-	orgId: string
+	orgId: string,
 ): Promise<RequiredProject> {
 	let project: RequiredProject | null = null;
 
@@ -46,6 +46,19 @@ export async function requireProjectForOrg(
 			where: { slug: projectIdOrSlug, orgId },
 			select: { id: true, slug: true, name: true, orgId: true },
 		});
+	}
+
+	if (!project) {
+		const alias = await app.prisma.projectSlugAlias.findFirst({
+			where: {
+				slug: projectIdOrSlug,
+				project: { orgId },
+			},
+			select: {
+				project: { select: { id: true, slug: true, name: true, orgId: true } },
+			},
+		});
+		project = alias?.project ?? null;
 	}
 
 	if (!project) {

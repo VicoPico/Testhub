@@ -20,6 +20,7 @@ import {
 	getAnalyticsMostFailingTests,
 	getAnalyticsSlowestTests,
 	getAnalyticsTimeseries,
+	getProject,
 	type AnalyticsMostFailingTestItem,
 	type AnalyticsSlowTestItem,
 	type AnalyticsTimeseriesItem,
@@ -43,6 +44,7 @@ export function AnalyticsPage() {
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [lastStatus, setLastStatus] = useState<number | null>(null);
+	const [projectName, setProjectName] = useState<string | null>(null);
 
 	const [timeseries, setTimeseries] = useState<AnalyticsTimeseriesItem[]>([]);
 	const [slowest, setSlowest] = useState<AnalyticsSlowTestItem[]>([]);
@@ -51,6 +53,26 @@ export function AnalyticsPage() {
 	>([]);
 
 	const projectSlug = projectId ?? '';
+
+	useEffect(() => {
+		if (!projectId || !hasApiKey) {
+			setProjectName(null);
+			return;
+		}
+		let cancelled = false;
+		getProject(projectId)
+			.then((project) => {
+				if (cancelled) return;
+				setProjectName(project.name);
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setProjectName(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [projectId, hasApiKey]);
 
 	const hasNoData = useMemo(() => {
 		if (!timeseries.length) return true;
@@ -179,7 +201,7 @@ export function AnalyticsPage() {
 				<div>
 					<h1 className='text-xl font-semibold'>Analytics</h1>
 					<p className='text-sm text-muted-foreground'>
-						Project: <span className='font-mono'>{projectId}</span>
+						Project: {projectName ?? projectId}
 					</p>
 				</div>
 				<AuthRequiredCallout />
@@ -193,7 +215,7 @@ export function AnalyticsPage() {
 				<div>
 					<h1 className='text-xl font-semibold'>Analytics</h1>
 					<p className='text-sm text-muted-foreground'>
-						Project: <span className='font-mono'>{projectId}</span>
+						Project: {projectName ?? projectId}
 					</p>
 				</div>
 				<div className='flex flex-wrap items-center gap-3'>

@@ -7,6 +7,7 @@ import {
 	batchIngestResults,
 	deleteRun,
 	ApiError,
+	getProject,
 	type BatchResultsRequest,
 	type CreateRunRequest,
 	type RunListItem,
@@ -58,6 +59,7 @@ export function RunsPage() {
 
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
+	const [projectName, setProjectName] = React.useState<string | null>(null);
 	// Delete state
 	const [deleting, setDeleting] = React.useState<string | null>(null);
 	const [confirmRun, setConfirmRun] = React.useState<RunListItem | null>(null);
@@ -143,6 +145,26 @@ export function RunsPage() {
 	React.useEffect(() => {
 		void refresh();
 	}, [refresh, apiKey]);
+
+	React.useEffect(() => {
+		if (!projectId || !hasApiKey) {
+			setProjectName(null);
+			return;
+		}
+		let cancelled = false;
+		getProject(projectId)
+			.then((project) => {
+				if (cancelled) return;
+				setProjectName(project.name);
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setProjectName(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [projectId, hasApiKey]);
 
 	async function onCreateRun() {
 		if (!hasApiKey) return;
@@ -365,7 +387,10 @@ export function RunsPage() {
 				<div>
 					<h1 className='text-xl font-semibold'>Runs</h1>
 					<p className='text-sm text-muted-foreground'>
-						Latest runs for <span className='font-medium'>{pid}</span>
+						Latest runs for{' '}
+						<span className='font-medium'>
+							{projectName ?? projectId ?? pid}
+						</span>
 					</p>
 				</div>
 
