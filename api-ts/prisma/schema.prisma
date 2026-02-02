@@ -93,10 +93,22 @@ model Project {
 
   testCases TestCase[]
   runs      TestRun[]
+  slugAliases ProjectSlugAlias[]
 
   @@unique([orgId, slug])
   @@index([orgId])
   @@index([createdAt])
+}
+
+model ProjectSlugAlias {
+  id        String   @id @default(cuid())
+  projectId String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 model ApiKey {

@@ -20,6 +20,15 @@ function formatDate(iso: string) {
 	return d.toLocaleString();
 }
 
+function formatEdited(createdAt: string, updatedAt?: string | null) {
+	if (!updatedAt) return '—';
+	const createdTs = new Date(createdAt).getTime();
+	const updatedTs = new Date(updatedAt).getTime();
+	if (!Number.isFinite(createdTs) || !Number.isFinite(updatedTs)) return '—';
+	if (updatedTs <= createdTs) return '—';
+	return formatDate(updatedAt);
+}
+
 // Simple slugify helper for UX (doesn't change API contract)
 function slugify(value: string) {
 	return value
@@ -82,6 +91,22 @@ export function ProjectsPage() {
 		if (banner) setFlashBanner(banner);
 		void refresh();
 	}, [refresh, apiKey]);
+
+	React.useEffect(() => {
+		function onProjectsChanged() {
+			void refresh();
+		}
+		window.addEventListener(
+			'testhub.projectsChanged',
+			onProjectsChanged as EventListener,
+		);
+		return () => {
+			window.removeEventListener(
+				'testhub.projectsChanged',
+				onProjectsChanged as EventListener,
+			);
+		};
+	}, [refresh]);
 
 	async function onCreateProject(e: React.FormEvent) {
 		e.preventDefault();
@@ -398,9 +423,10 @@ export function ProjectsPage() {
 			) : (
 				<div className='overflow-hidden rounded-md border'>
 					<div className='grid grid-cols-12 gap-2 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground'>
-						<div className='col-span-4'>Name</div>
+						<div className='col-span-3'>Name</div>
 						<div className='col-span-3'>Slug</div>
-						<div className='col-span-3'>Created</div>
+						<div className='col-span-2'>Created</div>
+						<div className='col-span-2'>Edited</div>
 						<div className='col-span-2 text-right'>Actions</div>
 					</div>
 
@@ -420,12 +446,15 @@ export function ProjectsPage() {
 									}
 								}}
 								className='grid grid-cols-12 items-center gap-2 px-4 py-3 text-sm cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'>
-								<div className='col-span-4 font-medium truncate'>{p.name}</div>
+								<div className='col-span-3 font-medium truncate'>{p.name}</div>
 								<div className='col-span-3 text-muted-foreground truncate'>
 									{p.slug}
 								</div>
-								<div className='col-span-3 text-muted-foreground'>
+								<div className='col-span-2 text-muted-foreground'>
 									{formatDate(p.createdAt)}
+								</div>
+								<div className='col-span-2 text-muted-foreground'>
+									{formatEdited(p.createdAt, p.updatedAt)}
 								</div>
 								<div className='col-span-2 flex justify-end gap-2'>
 									<Button

@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
 
@@ -17,6 +16,14 @@ const UpdateProjectBody = z.object({
 const ProjectParams = z.object({
 	projectId: z.string().min(1), // slug or db id
 });
+
+const SlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function assertSlug(value: string) {
+	if (!SlugPattern.test(value)) {
+		throw new Error('invalid_slug');
+	}
+}
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
 	// Auth guard for *all* routes in this plugin
@@ -64,6 +71,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 				name: true,
 				slug: true,
 				createdAt: true,
+				updatedAt: true,
 			},
 		});
 
@@ -88,6 +96,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 					name: true,
 					slug: true,
 					createdAt: true,
+					updatedAt: true,
 				},
 			});
 
@@ -95,8 +104,10 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 			return reply.code(201).send(project);
 		} catch (err) {
 			if (
-				err instanceof Prisma.PrismaClientKnownRequestError &&
-				err.code === 'P2002'
+				err &&
+				typeof err === 'object' &&
+				'code' in err &&
+				(err as { code?: string }).code === 'P2002'
 			) {
 				// Unique constraint violation (likely orgId+slug)
 				throw app.httpErrors.badRequest(
@@ -123,6 +134,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 				name: true,
 				slug: true,
 				createdAt: true,
+				updatedAt: true,
 			},
 		});
 
@@ -135,25 +147,96 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 		const { projectId } = ProjectParams.parse(req.params);
 		const body = UpdateProjectBody.parse(req.body);
 
+		if (!app.prisma) {
+			throw app.httpErrors.internalServerError('Prisma not initialized');
+		}
+
 		const project = await requireProjectForOrg(app, projectId, orgId);
 
+		const nextName = body.name?.trim();
+		const nextSlugRaw = body.slug?.trim();
+		const wantsSlugChange =
+			nextSlugRaw != null &&
+			nextSlugRaw.length > 0 &&
+			nextSlugRaw !== project.slug;
+
+		if (nextSlugRaw) {
+			try {
+				assertSlug(nextSlugRaw);
+			} catch (err) {
+				if (err instanceof Error && err.message === 'invalid_slug') {
+					throw app.httpErrors.badRequest(
+						'Slug must be lowercase letters, numbers, and dashes.',
+					);
+				}
+				throw err;
+			}
+		}
+
 		try {
-			const updated = await app.prisma.project.update({
-				where: { id: project.id },
-				data: body,
-				select: {
-					id: true,
-					name: true,
-					slug: true,
-					createdAt: true,
-				},
+			const updated = await app.prisma.$transaction(async (tx) => {
+				const aliasDelegate = (tx as typeof app.prisma).projectSlugAlias as
+					| typeof app.prisma.projectSlugAlias
+					| undefined;
+
+				if (wantsSlugChange && nextSlugRaw) {
+					const existingProject = await tx.project.findFirst({
+						where: { slug: nextSlugRaw, orgId },
+						select: { id: true },
+					});
+					if (existingProject && existingProject.id !== project.id) {
+						throw app.httpErrors.badRequest(
+							'Project slug is already in use in this organization',
+						);
+					}
+
+					if (aliasDelegate) {
+						const existingAlias = await aliasDelegate.findUnique({
+							where: { slug: nextSlugRaw },
+							select: { projectId: true },
+						});
+						if (existingAlias && existingAlias.projectId !== project.id) {
+							throw app.httpErrors.badRequest(
+								'Project slug is already in use in this organization',
+							);
+						}
+
+						if (existingAlias && existingAlias.projectId === project.id) {
+							await aliasDelegate.delete({
+								where: { slug: nextSlugRaw },
+							});
+						}
+
+						await aliasDelegate.createMany({
+							data: [{ projectId: project.id, slug: project.slug }],
+							skipDuplicates: true,
+						});
+					}
+				}
+
+				return tx.project.update({
+					where: { id: project.id },
+					data: {
+						...(nextName ? { name: nextName } : {}),
+						...(wantsSlugChange && nextSlugRaw ? { slug: nextSlugRaw } : {}),
+					},
+					select: {
+						id: true,
+						name: true,
+						slug: true,
+						createdAt: true,
+						updatedAt: true,
+					},
+				});
 			});
 
 			return updated;
 		} catch (err) {
 			if (
-				err instanceof Prisma.PrismaClientKnownRequestError &&
-				err.code === 'P2002'
+				err &&
+				typeof err === 'object' &&
+				'code' in err &&
+				(err as { code?: string }).code === 'P2002'
 			) {
 				throw app.httpErrors.badRequest(
 					'Project slug is already in use in this organization',

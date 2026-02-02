@@ -1,14 +1,18 @@
 import * as React from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/lib/useAuth';
-import {
-	ApiError,
-	type Project,
-	getProject,
-	updateProject,
-} from '@/lib/api';
+import { ApiError, type Project, getProject, updateProject } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
 import { PageError, PageLoading } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
 
@@ -19,7 +23,8 @@ function formatDate(iso: string) {
 
 export function ProjectOverviewPage() {
 	const { projectId } = useParams();
-	const pid = projectId ?? 'demo';
+	const navigate = useNavigate();
+	const pid = projectId ?? '';
 	const { apiKey, hasApiKey } = useAuth();
 
 	const [project, setProject] = React.useState<Project | null>(null);
@@ -31,8 +36,18 @@ export function ProjectOverviewPage() {
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editName, setEditName] = React.useState('');
 	const [editSlug, setEditSlug] = React.useState('');
+	const [changeSlug, setChangeSlug] = React.useState(false);
+	const [showConfirm, setShowConfirm] = React.useState(false);
 	const [updating, setUpdating] = React.useState(false);
 	const [updateError, setUpdateError] = React.useState<string | null>(null);
+
+	function slugify(value: string) {
+		return value
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '');
+	}
 
 	const refresh = React.useCallback(async () => {
 		if (!hasApiKey) {
@@ -52,6 +67,7 @@ export function ProjectOverviewPage() {
 			setProject(data);
 			setEditName(data.name);
 			setEditSlug(data.slug);
+			setChangeSlug(false);
 		} catch (e) {
 			setLastError(e);
 			setError(e instanceof Error ? e.message : 'Unknown error');
@@ -64,26 +80,53 @@ export function ProjectOverviewPage() {
 		void refresh();
 	}, [refresh, apiKey]);
 
-	async function onSaveChanges(e: React.FormEvent) {
-		e.preventDefault();
-		if (!hasApiKey || !project) return;
+	React.useEffect(() => {
+		if (!changeSlug) return;
+		const suggested = slugify(editName);
+		if (suggested && suggested !== editSlug) {
+			setEditSlug(suggested);
+		}
+	}, [changeSlug, editName]);
 
+	async function applyUpdate() {
+		if (!hasApiKey || !project) return;
 		setUpdateError(null);
 		setUpdating(true);
 
 		try {
-			if (!editName.trim() || !editSlug.trim()) {
-				setUpdateError('Name and slug are required');
+			if (!editName.trim()) {
+				setUpdateError('Name is required');
 				return;
 			}
 
-			await updateProject(project.id, {
+			const payload: { name: string; slug?: string } = {
 				name: editName.trim(),
-				slug: editSlug.trim(),
-			});
+			};
+			if (changeSlug) {
+				if (!editSlug.trim()) {
+					setUpdateError('Slug is required when changing slug');
+					return;
+				}
+				payload.slug = editSlug.trim();
+			}
 
-			await refresh();
+			const updated = await updateProject(project.id, payload);
+			setProject(updated);
+			setEditName(updated.name);
+			setEditSlug(updated.slug);
+			setChangeSlug(false);
 			setIsEditing(false);
+			window.dispatchEvent(new CustomEvent('testhub.projectsChanged'));
+
+			if (projectId && projectId !== updated.slug) {
+				try {
+					localStorage.setItem('lastProjectId', updated.slug);
+				} catch {
+					// ignore
+				}
+				const nextPath = `/projects/${encodeURIComponent(updated.slug)}`;
+				navigate(nextPath, { replace: true });
+			}
 		} catch (e) {
 			if (e instanceof ApiError) {
 				setUpdateError(e.message);
@@ -94,7 +137,22 @@ export function ProjectOverviewPage() {
 			}
 		} finally {
 			setUpdating(false);
+			setShowConfirm(false);
 		}
+	}
+
+	async function onSaveChanges(e: React.FormEvent) {
+		e.preventDefault();
+		if (!hasApiKey || !project) return;
+
+		const wantsSlugChange =
+			changeSlug && editSlug.trim() && editSlug.trim() !== project.slug;
+		if (wantsSlugChange) {
+			setShowConfirm(true);
+			return;
+		}
+
+		await applyUpdate();
 	}
 
 	function onCancelEdit() {
@@ -103,6 +161,8 @@ export function ProjectOverviewPage() {
 			setEditSlug(project.slug);
 		}
 		setUpdateError(null);
+		setChangeSlug(false);
+		setShowConfirm(false);
 		setIsEditing(false);
 	}
 
@@ -199,20 +259,40 @@ export function ProjectOverviewPage() {
 									/>
 								</div>
 
-								<div className='space-y-1'>
-									<label className='text-xs font-medium' htmlFor='edit-slug'>
-										Slug
-									</label>
-									<Input
-										id='edit-slug'
-										placeholder='project-slug'
-										value={editSlug}
-										onChange={(e) => setEditSlug(e.target.value)}
-										disabled={updating}
-									/>
-									<p className='text-[11px] text-muted-foreground'>
-										Used in URLs and API calls.
-									</p>
+								<div className='rounded-md border p-3'>
+									<div className='flex items-center justify-between gap-3'>
+										<div>
+											<div className='text-sm font-medium'>Advanced</div>
+											<div className='text-xs text-muted-foreground'>
+												Slug changes can impact URLs and integrations.
+											</div>
+										</div>
+										<Switch
+											checked={changeSlug}
+											onCheckedChange={setChangeSlug}
+											disabled={updating}
+										/>
+									</div>
+
+									{changeSlug ? (
+										<div className='mt-3 space-y-1'>
+											<label
+												className='text-xs font-medium'
+												htmlFor='edit-slug'>
+												New slug
+											</label>
+											<Input
+												id='edit-slug'
+												placeholder='project-slug'
+												value={editSlug}
+												onChange={(e) => setEditSlug(e.target.value)}
+												disabled={updating}
+											/>
+											<p className='text-[11px] text-muted-foreground'>
+												Old links keep working via slug aliases.
+											</p>
+										</div>
+									) : null}
 								</div>
 
 								{updateError ? (
@@ -236,6 +316,29 @@ export function ProjectOverviewPage() {
 					</div>
 				</div>
 			)}
+
+			<Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Change project slug?</DialogTitle>
+						<DialogDescription>
+							Changing the slug can impact URLs and integrations. Old links will
+							continue to work via aliases.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant='outline'
+							onClick={() => setShowConfirm(false)}
+							disabled={updating}>
+							Cancel
+						</Button>
+						<Button onClick={applyUpdate} disabled={updating}>
+							{updating ? 'Saving…' : 'Confirm change'}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SidebarNav } from './SidebarNav';
 import { TopBar } from './TopBar';
 import { useSidebarState } from './useSidebarState';
@@ -63,7 +63,7 @@ export function AppShell() {
 			? 'Select a project to search.'
 			: 'Create a project to start searching.';
 
-	useEffect(() => {
+	const refreshProjects = useCallback(() => {
 		let cancelled = false;
 		setProjectsLoaded(false);
 		setProjectsError(false);
@@ -85,7 +85,25 @@ export function AppShell() {
 		return () => {
 			cancelled = true;
 		};
-	}, [projectId]);
+	}, []);
+
+	useEffect(() => {
+		const cleanup = refreshProjects();
+		function onProjectsChanged() {
+			refreshProjects();
+		}
+		window.addEventListener(
+			'testhub.projectsChanged',
+			onProjectsChanged as EventListener,
+		);
+		return () => {
+			cleanup?.();
+			window.removeEventListener(
+				'testhub.projectsChanged',
+				onProjectsChanged as EventListener,
+			);
+		};
+	}, [refreshProjects]);
 
 	useEffect(() => {
 		const desired = projectId ?? storedProjectId;
