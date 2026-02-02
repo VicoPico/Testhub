@@ -315,11 +315,40 @@ export function loginEmailPassword(body: { email: string; password: string }) {
 	});
 }
 
-export function getAuthMe() {
-	return apiFetch<AuthMeResponse>('/auth/me');
+export async function getAuthMe(): Promise<AuthMeResponse | null> {
+	const res = await fetch(`${API_BASE}/auth/me`, {
+		credentials: 'include',
+		cache: 'no-store',
+	});
+
+	if (res.status === 401) return null;
+
+	if (!res.ok) {
+		const details = await parseErrorBody(res);
+		let message = `${res.status} ${res.statusText}`;
+		if (typeof details === 'string' && details.trim()) {
+			message = `${message} — ${details}`;
+		} else if (isRecord(details) && typeof details.message === 'string') {
+			message = `${message} — ${details.message}`;
+		}
+
+		throw new ApiError({
+			status: res.status,
+			statusText: res.statusText,
+			message,
+			details,
+		});
+	}
+
+	if (res.status === 204) return null;
+	return (await res.json()) as AuthMeResponse;
 }
 
 export function logoutSession() {
+	return apiFetch<void>('/auth/logout', { method: 'POST' });
+}
+
+export function logout() {
 	return apiFetch<void>('/auth/logout', { method: 'POST' });
 }
 

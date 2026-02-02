@@ -216,6 +216,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 		try {
 			checkRateLimit(`login:${req.ip}`, 10, 60_000);
 		} catch {
+			req.log.warn({ reasonCode: 'rate_limited' }, 'auth.login.blocked');
 			throw app.httpErrors.tooManyRequests('Too many attempts');
 		}
 
@@ -227,15 +228,27 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 		});
 
 		if (!user || !user.passwordHash) {
+			req.log.warn(
+				{ email, reasonCode: 'invalid_password' },
+				'auth.login.failed',
+			);
 			throw app.httpErrors.unauthorized('Invalid email or password');
 		}
 
 		const valid = await verifyPassword(body.password, user.passwordHash);
 		if (!valid) {
+			req.log.warn(
+				{ email, reasonCode: 'invalid_password' },
+				'auth.login.failed',
+			);
 			throw app.httpErrors.unauthorized('Invalid email or password');
 		}
 
 		if (!user.emailVerifiedAt) {
+			req.log.warn(
+				{ email, reasonCode: 'email_not_verified' },
+				'auth.login.blocked',
+			);
 			const rawToken = generateToken();
 			const tokenHash = hashToken(rawToken);
 			const expiresAt = new Date(
@@ -331,6 +344,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 		});
 
 		if (!token || token.consumedAt || token.expiresAt <= now) {
+			req.log.warn(
+				{
+					reasonCode: token ? 'expired_token' : 'invalid_token',
+				},
+				'auth.verify_email.failed',
+			);
 			throw app.httpErrors.badRequest('Invalid or expired token');
 		}
 
@@ -435,6 +454,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 		});
 
 		if (!token || token.consumedAt || token.expiresAt <= now) {
+			req.log.warn(
+				{
+					reasonCode: token ? 'expired_token' : 'invalid_token',
+				},
+				'auth.password_reset.failed',
+			);
 			throw app.httpErrors.badRequest('Invalid or expired token');
 		}
 

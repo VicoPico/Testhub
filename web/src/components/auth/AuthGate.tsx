@@ -1,18 +1,22 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ApiError, getAuthMe, resendVerification } from '@/lib/api';
+import { getAuthMe, resendVerification } from '@/lib/api';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const [loading, setLoading] = React.useState(true);
 	const [email, setEmail] = React.useState<string | undefined>();
 	const [verified, setVerified] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [sent, setSent] = React.useState(false);
+	const [authState, setAuthState] = React.useState<
+		'loading' | 'authed' | 'unauthed'
+	>('loading');
 
-	React.useEffect(() => {
+	const refreshAuth = React.useCallback(() => {
 		let mounted = true;
 		setLoading(true);
 		setError(null);
@@ -20,15 +24,23 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		getAuthMe()
 			.then((res) => {
 				if (!mounted) return;
+				if (!res) {
+					setAuthState('unauthed');
+					setVerified(true);
+					setEmail(undefined);
+					navigate('/login', {
+						replace: true,
+						state: { from: location.pathname + location.search },
+					});
+					return;
+				}
+				setAuthState('authed');
 				setVerified(res.emailVerified);
 				setEmail(res.user?.email);
 			})
 			.catch((e) => {
 				if (!mounted) return;
-				if (e instanceof ApiError && e.status === 401) {
-					navigate('/login', { replace: true });
-					return;
-				}
+				setAuthState('unauthed');
 				setError(e instanceof Error ? e.message : 'Failed to load session');
 			})
 			.finally(() => {
@@ -39,7 +51,25 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		return () => {
 			mounted = false;
 		};
-	}, [navigate]);
+	}, [location.pathname, location.search, navigate]);
+
+	React.useEffect(() => {
+		const cleanup = refreshAuth();
+		function onAuthChanged() {
+			refreshAuth();
+		}
+		window.addEventListener(
+			'testhub.authChanged',
+			onAuthChanged as EventListener,
+		);
+		return () => {
+			cleanup?.();
+			window.removeEventListener(
+				'testhub.authChanged',
+				onAuthChanged as EventListener,
+			);
+		};
+	}, [refreshAuth]);
 
 	async function onResend() {
 		if (!email) return;
@@ -59,6 +89,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 				<div className='text-sm text-muted-foreground'>Loading…</div>
 			</div>
 		);
+	}
+
+	if (authState === 'unauthed') {
+		return null;
 	}
 
 	if (!verified) {

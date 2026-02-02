@@ -11,7 +11,8 @@
 		"prisma:generate": "prisma generate",
 		"prisma:migrate": "prisma migrate dev",
 		"prisma:studio": "prisma studio",
-		"seed": "tsx prisma/seed.ts"
+		"seed": "tsx prisma/seed.ts",
+		"seed:analytics": "tsx scripts/seedAnalytics.ts"
 	},
 	"keywords": [],
 	"author": "",

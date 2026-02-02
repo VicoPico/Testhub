@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
 	ApiError,
 	getAuthConfig,
+	getAuthMe,
 	loginEmailPassword,
 	resendVerification,
 } from '@/lib/api';
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input';
 
 export function LoginPage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const [email, setEmail] = React.useState('');
 	const [password, setPassword] = React.useState('');
 	const [loading, setLoading] = React.useState(false);
@@ -33,7 +35,30 @@ export function LoginPage() {
 
 		try {
 			await loginEmailPassword({ email, password });
-			navigate('/projects', { replace: true });
+			const me = await getAuthMe();
+			if (!me) {
+				throw new Error('Login did not establish a session');
+			}
+			window.dispatchEvent(new CustomEvent('testhub.authChanged'));
+			const from =
+				typeof location.state === 'object' && location.state
+					? (location.state as { from?: string }).from
+					: undefined;
+			const isValidTarget = (path?: string) => {
+				if (!path || !path.startsWith('/')) return false;
+				if (
+					['/login', '/register', '/verify-email', '/reset-password'].includes(
+						path,
+					)
+				) {
+					return false;
+				}
+				if (path.startsWith('/projects/') && path.endsWith('/settings'))
+					return false;
+				return true;
+			};
+			const target = isValidTarget(from) ? from! : '/projects';
+			navigate(target, { replace: true });
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 403) {
 				setError(e.message);
