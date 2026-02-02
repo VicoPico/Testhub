@@ -1,23 +1,58 @@
 # Testhub
 
-Testhub is a fast, developer-focused platform to ingest, store, and explore automated test results. Built with a strong emphasis on performance, clarity, and long-term maintainability, it provides a clean REST API and modern SPA interface for managing test runs and results.
+Testhub is a fast, developer-focused platform to ingest, store, and explore automated test results. Built with a strong emphasis on performance, clarity, and long-term maintainability, it provides a clean REST API and modern SPA for ingesting, exploring, and analyzing test runs and results.
+
+Testhub is designed for teams and individuals who want full control over how automated test results are ingested, queried, and visualized—without opaque SaaS abstractions.
+
+## Product Overview
+
+### Runs & Results
+
+**Inspect execution-level outcomes and timing at a glance.**
+
+![Run results overview](docs/screenshots/runs-results.png)
+
+---
+
+### Test Details
+
+![Test details view](docs/screenshots/test-details.png)
+
+Inspect individual test cases, including status, duration, tags, and historical context.
+
+---
+
+### Analytics Dashboard
+
+![Analytics dashboard](docs/screenshots/analytics-dashboard.png)
+
+Analyze test performance over time with insights such as slowest tests, failure trends, and execution volume.
 
 ## Features
+
+**Core**
 
 - Full CRUD operations for projects and test runs
 - Batch ingestion of test results with automatic test case management
 - Organization-scoped API key authentication
-- Real-time test result tracking and filtering
+
+**Exploration**
+
 - Tests explorer with history and status breakdowns
 - Tags on test cases with tag-based filtering
 - Project-scoped search across runs and tests
+
+**Analytics**
+
 - Analytics dashboards with tables and charts (time series, slowest tests, most failing tests)
 - Chart view toggles (tabular vs charts, bars vs stacked area)
-- shadcn-styled chart components with themed tooltips/legends
+- Recharts-based data visualizations
+
+**Platform**
+
 - PostgreSQL-backed persistent storage with optimized queries
 - Type-safe API contracts with OpenAPI specification
 - Modern React SPA with shadcn/ui components
-- Recharts-based data visualizations
 
 ## Stack
 
@@ -320,7 +355,9 @@ All entities use cascade deletes to maintain referential integrity.
 
 ## Authentication & Authorization
 
-Testhub uses API-key-based authentication with strict organization scoping.
+Testhub supports both session-based authentication (for the web UI) and API-key-based authentication (for programmatic access), both scoped strictly to an organization.
+
+> Note: In private/incognito browser contexts, authentication succeeds but UI state synchronization may require a refresh. This is tracked and will be improved.
 
 ### How It Works
 
@@ -567,7 +604,9 @@ pnpm gen:openapi      # Generate TypeScript types from OpenAPI spec
 
 ## License
 
-MIT License - See [LICENSE](LICENSE) file for details.
+MIT License — See [LICENSE](LICENSE) file for details.
+
+> Note: Licensing may evolve as Testhub matures into a commercial product. The current codebase remains MIT-licensed.
 
 ---
 
