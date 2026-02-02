@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
 
@@ -44,7 +43,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 			totalcount: number;
 		};
 
-		const rows = await app.prisma.$queryRaw<Row[]>(Prisma.sql`
+		const rows = await app.prisma.$queryRaw<Row[]>`
 			WITH days AS (
 				SELECT generate_series(
 					date_trunc('day', now()) - (${startDaysAgo} * interval '1 day'),
@@ -69,7 +68,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 			LEFT JOIN filtered f ON date_trunc('day', f.created_at) = d.day
 			GROUP BY d.day
 			ORDER BY d.day ASC;
-		`);
+		`;
 
 		return {
 			days: query.days,
@@ -103,25 +102,34 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 			samplescount: number;
 		};
 
-		const rows = await app.prisma.$queryRaw<Row[]>(Prisma.sql`
+		const rows = await app.prisma.$queryRaw<Row[]>`
+			WITH filtered AS (
+				SELECT
+					tr."testCaseId" AS testCaseId,
+					tr."durationMs" AS durationMs,
+					tc.name AS name,
+					tc."externalId" AS externalId,
+					tc."suiteName" AS suiteName
+				FROM "TestResult" tr
+				JOIN "TestRun" r ON r.id = tr."runId"
+				JOIN "TestCase" tc ON tc.id = tr."testCaseId"
+				WHERE r."projectId" = ${project.id}
+				  AND tr."createdAt" >= ${cutoff}
+				  AND tr."durationMs" IS NOT NULL
+			)
 			SELECT
-				tc.id AS testCaseId,
-				tc.name AS name,
-				tc."externalId" AS externalId,
-				tc."suiteName" AS suiteName,
-				AVG(tr."durationMs")::int AS avgDurationMs,
-				MAX(tr."durationMs")::int AS maxDurationMs,
+				f.testCaseId AS testCaseId,
+				MIN(f.name) AS name,
+				MIN(f.externalId) AS externalId,
+				MIN(f.suiteName) AS suiteName,
+				AVG(f.durationMs)::int AS avgDurationMs,
+				MAX(f.durationMs)::int AS maxDurationMs,
 				COUNT(*)::int AS samplesCount
-			FROM "TestResult" tr
-			JOIN "TestRun" r ON r.id = tr."runId"
-			JOIN "TestCase" tc ON tc.id = tr."testCaseId"
-			WHERE r."projectId" = ${project.id}
-			  AND tr."createdAt" >= ${cutoff}
-			  AND tr."durationMs" IS NOT NULL
-			GROUP BY tc.id
-			ORDER BY AVG(tr."durationMs") DESC NULLS LAST
+			FROM filtered f
+			GROUP BY f.testCaseId
+			ORDER BY AVG(f.durationMs) DESC NULLS LAST
 			LIMIT ${query.limit};
-		`);
+		`;
 
 		return {
 			days: query.days,
@@ -156,7 +164,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 			totalcount: number;
 		};
 
-		const rows = await app.prisma.$queryRaw<Row[]>(Prisma.sql`
+		const rows = await app.prisma.$queryRaw<Row[]>`
 			SELECT
 				tc.id AS testCaseId,
 				tc.name AS name,
@@ -174,7 +182,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 			HAVING COUNT(*) > 0
 			ORDER BY (SUM(CASE WHEN tr.status IN ('FAILED','ERROR') THEN 1 ELSE 0 END)) DESC
 			LIMIT ${query.limit};
-		`);
+		`;
 
 		return {
 			days: query.days,

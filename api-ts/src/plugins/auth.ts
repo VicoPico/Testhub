@@ -11,6 +11,7 @@ export const authPlugin: FastifyPluginAsync = fp(async (app) => {
 		if (rawCookie) {
 			const unsigned = req.unsignCookie(rawCookie);
 			if (!unsigned.valid) {
+				req.log.warn({ reasonCode: 'invalid_cookie' }, 'auth.session.invalid');
 				reply.clearCookie(app.config.AUTH_COOKIE_NAME, { path: '/' });
 			}
 
@@ -57,6 +58,20 @@ export const authPlugin: FastifyPluginAsync = fp(async (app) => {
 						});
 
 					return;
+				}
+
+				if (session) {
+					const reasonCode = session.revokedAt
+						? 'revoked_session'
+						: session.expiresAt <= now
+							? 'expired_session'
+							: 'invalid_session';
+					req.log.warn({ reasonCode }, 'auth.session.invalid');
+				} else {
+					req.log.warn(
+						{ reasonCode: 'missing_session' },
+						'auth.session.invalid',
+					);
 				}
 
 				reply.clearCookie(app.config.AUTH_COOKIE_NAME, { path: '/' });

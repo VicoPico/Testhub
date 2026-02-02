@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
 
@@ -54,7 +53,7 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 				lastStatus: string | null;
 				lastSeenAt: Date | null;
 			}>
-		>(Prisma.sql`
+		>`
 			WITH latest AS (
 				SELECT DISTINCT ON (tr."testCaseId")
 					tr."testCaseId",
@@ -92,7 +91,7 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 				)
 			ORDER BY COALESCE(latest."lastSeenAt", tc."createdAt") DESC
 			LIMIT ${query.limit}
-		`);
+		`;
 
 		return {
 			items: items.map((r) => ({

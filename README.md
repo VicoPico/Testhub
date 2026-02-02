@@ -131,6 +131,54 @@ The test script validates:
 
 ---
 
+## Auth Test Matrix (Dev)
+
+Run the end-to-end auth smoke test (email/password + session behavior):
+
+```bash
+pnpm -C api-ts exec tsx scripts/auth-smoke-test.ts
+```
+
+Expected output (example):
+
+```
+[PASS] register
+[PASS] verify email
+[PASS] login
+[PASS] logout
+...
+```
+
+Reset DB (dev only):
+
+```bash
+pnpm -C api-ts prisma migrate reset
+```
+
+Seed a test user:
+
+- Set ALLOW_SIGNUP=true in api-ts/.env
+- Run the smoke test above (it creates a unique user)
+
+Common failure cases:
+
+- ALLOW_SIGNUP=false blocks registration
+- Missing migrations (schema out of date)
+- Prisma client not generated
+- Native deps not built (argon2)
+
+### Endpoint Smoke Check (Dev)
+
+If Tests or Analytics pages error, verify the protected endpoints return 200 (requires a valid API key):
+
+```bash
+export API_KEY="your-api-key-here"
+curl -H "x-api-key: $API_KEY" http://localhost:8080/projects/project-nemesis/tests
+curl -H "x-api-key: $API_KEY" http://localhost:8080/projects/project-nemesis/analytics/timeseries
+```
+
+---
+
 ## API Endpoints
 
 ### Health

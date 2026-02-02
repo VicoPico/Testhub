@@ -12,7 +12,7 @@ export function AuthRequiredCallout(props: { title?: string; body?: string }) {
 					'This page needs an API key. Add one in Settings to continue.'}
 			</div>
 			<Button asChild size='sm' variant='outline'>
-				<Link to='/projects/demo/settings'>Go to Settings</Link>
+				<Link to='/settings'>Go to Settings</Link>
 			</Button>
 		</div>
 	);

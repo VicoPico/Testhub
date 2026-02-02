@@ -1,13 +1,19 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SidebarNav } from './SidebarNav';
 import { usePageTitle } from '@/lib/usePageTitle';
-import { searchProject, type SearchResponse } from '@/lib/api';
+import { logout, searchProject, type SearchResponse } from '@/lib/api';
 
 export function TopBar(props: {
 	projectId?: string;
@@ -17,17 +23,36 @@ export function TopBar(props: {
 	isProjectSelected: boolean;
 }) {
 	const pageTitle = usePageTitle();
+	const navigate = useNavigate();
 	const [mobileOpen, setMobileOpen] = React.useState(false);
 	const [query, setQuery] = React.useState('');
 	const [results, setResults] = React.useState<SearchResponse | null>(null);
 	const [searchOpen, setSearchOpen] = React.useState(false);
 	const [searchLoading, setSearchLoading] = React.useState(false);
 	const [searchError, setSearchError] = React.useState<string | null>(null);
+	const [loggingOut, setLoggingOut] = React.useState(false);
 	const queryRef = React.useRef(query);
 
 	React.useEffect(() => {
 		queryRef.current = query;
 	}, [query]);
+
+	async function onLogout() {
+		if (loggingOut) return;
+		setLoggingOut(true);
+		try {
+			await logout();
+			try {
+				localStorage.removeItem('lastProjectId');
+			} catch {
+				// ignore
+			}
+			window.dispatchEvent(new CustomEvent('testhub.authChanged'));
+			navigate('/login', { replace: true });
+		} finally {
+			setLoggingOut(false);
+		}
+	}
 
 	React.useEffect(() => {
 		const trimmed = query.trim();
@@ -216,6 +241,16 @@ export function TopBar(props: {
 				</div>
 				<div className='flex items-center gap-2'>
 					<ThemeToggle />
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant='outline' size='sm' disabled={loggingOut}>
+								Account
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align='end'>
+							<DropdownMenuItem onClick={onLogout}>Logout</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			</div>
 		</header>
