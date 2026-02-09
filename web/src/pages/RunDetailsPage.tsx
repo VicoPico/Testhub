@@ -24,6 +24,7 @@ import {
 
 import { PageError } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
+import { ScrollableList } from '@/components/common/ScrollableList';
 import { useAuth } from '@/lib/useAuth';
 
 function runStatusBadgeClass(status: RunDetails['status']) {
@@ -343,7 +344,7 @@ export function RunDetailsPage() {
 							<div className='col-span-2'>Message</div>
 						</div>
 
-						<div className='divide-y'>
+						<ScrollableList>
 							{filteredResults.map((r) => {
 								const showMsg = r.status === 'FAILED' || r.status === 'ERROR';
 								return (
@@ -398,7 +399,7 @@ export function RunDetailsPage() {
 									</div>
 								);
 							})}
-						</div>
+						</ScrollableList>
 					</div>
 				)}
 			</div>
