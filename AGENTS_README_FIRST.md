@@ -31,12 +31,19 @@ Recent changes (last working session)
   - Applied to Tests list and Run results list.
   - Scroll height increased to match Analytics chart height (h-64).
 - Header labels use project name (Analytics/Runs/Run details) when available.
+- Auth mode UI (session vs API key):
+  - New auth mode storage key: testhub.authMode (see web/src/lib/auth.ts).
+  - Settings page exposes mode selection + API key management.
+  - AuthGate skips login redirects in API key mode.
+  - apiFetch only sends x-api-key when API key mode is active.
 
 Potential gotchas
 
 - Prisma ESM: prefer app.prisma injected via plugin; avoid runtime Prisma imports.
 - Project slug changes: ensure aliases keep old URLs working.
 - Some UI states rely on CustomEvent: testhub.projectsChanged, testhub.projectNotFound, testhub.authChanged.
+- If API key is cleared, auth mode falls back to session automatically.
+- Only send x-api-key in API key mode; session mode relies on cookies.
 
 If you touch these, re-check
 

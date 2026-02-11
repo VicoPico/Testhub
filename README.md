@@ -256,7 +256,8 @@ curl -H "x-api-key: $API_KEY" http://localhost:8080/projects/project-nemesis/ana
 - `GET /projects/:projectId/analytics/slowest-tests` - Slowest tests (avg/max duration)
 - `GET /projects/:projectId/analytics/most-failing-tests` - Most failing tests
 
-All protected endpoints require the `x-api-key` header.
+All protected endpoints require either a session cookie (web UI) or the
+`x-api-key` header (programmatic access).
 
 ---
 
@@ -355,7 +356,10 @@ All entities use cascade deletes to maintain referential integrity.
 
 ## Authentication & Authorization
 
-Testhub supports both session-based authentication (for the web UI) and API-key-based authentication (for programmatic access), both scoped strictly to an organization.
+Testhub supports both session-based authentication (for the web UI) and
+API-key-based authentication (for programmatic access), both scoped strictly to
+an organization. The web app lets you choose the current authentication mode in
+Settings (Session or API key).
 
 > Note: In private/incognito browser contexts, authentication succeeds but UI state synchronization may require a refresh. This is tracked and will be improved.
 
@@ -363,7 +367,7 @@ Testhub supports both session-based authentication (for the web UI) and API-key-
 
 - Every request is associated with a request context containing organization and user information
 - API keys belong to an organization and optionally a specific user
-- All protected routes require authentication via the `x-api-key` header
+- All protected routes require authentication via session cookie or `x-api-key`
 - Projects and runs are always resolved within the authenticated organization
 - Cross-organization access is prevented by design
 - Non-owned resources return 404 to avoid information leakage
@@ -385,7 +389,8 @@ Testhub supports both session-based authentication (for the web UI) and API-key-
    curl -H "x-api-key: YOUR_API_KEY" http://localhost:8080/projects
    ```
 
-4. In the web UI, configure the API key in Settings to persist it locally
+4. In the web UI, configure the API key in Settings (and select API key mode) to
+   persist it locally
 
 This model keeps authorization logic explicit and auditable without introducing unnecessary complexity.
 
