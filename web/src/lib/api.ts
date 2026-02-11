@@ -50,6 +50,26 @@ async function parseErrorBody(res: Response): Promise<unknown> {
 	}
 }
 
+type AuthMode = 'session' | 'apiKey';
+
+function getAuthMode(): AuthMode {
+	if (typeof window === 'undefined') return 'session';
+	try {
+		const v = localStorage.getItem('testhub.authMode');
+		return v === 'apiKey' ? 'apiKey' : 'session';
+	} catch {
+		return 'session';
+	}
+}
+
+function shouldSendApiKey(path: string): boolean {
+	// never attach API key to auth endpoints
+	if (isAuthPath(path)) return false;
+
+	// Only send API key when user explicitly chose API key mode
+	return getAuthMode() === 'apiKey';
+}
+
 function pickApiKey(): string | undefined {
 	const stored = getApiKey();
 	return stored ?? DEV_API_KEY;
@@ -96,7 +116,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 		...(init?.headers ?? {}),
 	};
 
-	if (apiKey && !isAuthPath(path)) {
+	// ⭐ Only send API key when explicitly in API key mode
+	if (apiKey && shouldSendApiKey(path)) {
 		(headers as Record<string, string>)['x-api-key'] = apiKey;
 	}
 
@@ -276,15 +297,6 @@ type PathAnalyticsMostFailingTests =
 
 type PathProjects = '/projects';
 type PathProject = '/projects/{projectId}';
-
-type PathAuthConfig = '/auth/config';
-type PathAuthRegister = '/auth/register';
-type PathAuthLogin = '/auth/login';
-type PathAuthMe = '/auth/me';
-type PathAuthLogout = '/auth/logout';
-type PathAuthForgot = '/auth/password/forgot';
-type PathAuthReset = '/auth/password/reset';
-type PathAuthResend = '/auth/resend-verification';
 
 // ----- Projects -----
 
