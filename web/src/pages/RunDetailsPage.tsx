@@ -39,6 +39,7 @@ import {
 
 import { PageError } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
+import { ScrollableList } from '@/components/common/ScrollableList';
 import { useAuth } from '@/lib/useAuth';
 import {
 	getAndClearFlashBanner,
@@ -568,7 +569,7 @@ export function RunDetailsPage() {
 							<div className='col-span-2'>Message</div>
 						</div>
 
-						<div className='max-h-[520px] divide-y overflow-y-auto'>
+						<ScrollableList>
 							{filteredResults.map((r) => {
 								const showMsg = r.status === 'FAILED' || r.status === 'ERROR';
 								return (
@@ -623,7 +624,7 @@ export function RunDetailsPage() {
 									</div>
 								);
 							})}
-						</div>
+						</ScrollableList>
 					</div>
 				)}
 			</div>

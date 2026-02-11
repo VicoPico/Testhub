@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { PageError, PageLoading } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
+import { ScrollableList } from '@/components/common/ScrollableList';
 import {
 	PolarAngleAxis,
 	PolarGrid,
@@ -305,7 +306,7 @@ export function TestsPage() {
 							<div className='col-span-2 text-right'>Last seen</div>
 						</div>
 
-						<div className='max-h-[200px] divide-y overflow-y-auto'>
+						<ScrollableList>
 							{items.map((t) => {
 								const isSelected = selected?.id === t.id;
 								const last = (
@@ -379,7 +380,7 @@ export function TestsPage() {
 									</div>
 								);
 							})}
-						</div>
+						</ScrollableList>
 					</div>
 
 					<div className='rounded-md border p-4 space-y-3'>
