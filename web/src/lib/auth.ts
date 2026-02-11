@@ -1,23 +1,47 @@
 const KEY = 'testhub.apiKey';
-const MODE_KEY = 'testhub.authMode';
+export const AUTH_MODE_KEY = 'testhub.authMode';
 
 export type AuthMode = 'session' | 'apiKey';
 
-export function getAuthMode(): AuthMode {
-	try {
-		const v = localStorage.getItem(MODE_KEY);
-		return v === 'apiKey' ? 'apiKey' : 'session';
-	} catch {
-		return 'session';
-	}
+function notifyAuthChanged() {
+	if (typeof window === 'undefined') return;
+	window.dispatchEvent(new CustomEvent('testhub.authChanged'));
 }
 
-function setAuthMode(mode: AuthMode) {
+function isAuthMode(value: string | null): value is AuthMode {
+	return value === 'session' || value === 'apiKey';
+}
+
+export function getAuthMode(): AuthMode {
 	try {
-		localStorage.setItem(MODE_KEY, mode);
+		const stored = localStorage.getItem(AUTH_MODE_KEY);
+		if (isAuthMode(stored)) {
+			if (stored === 'apiKey' && !getApiKey()) return 'session';
+			return stored;
+		}
 	} catch {
 		// ignore
 	}
+
+	return getApiKey() ? 'apiKey' : 'session';
+}
+
+export function setAuthMode(mode: AuthMode) {
+	try {
+		localStorage.setItem(AUTH_MODE_KEY, mode);
+	} catch {
+		// ignore
+	}
+	notifyAuthChanged();
+}
+
+export function clearAuthMode() {
+	try {
+		localStorage.removeItem(AUTH_MODE_KEY);
+	} catch {
+		// ignore
+	}
+	notifyAuthChanged();
 }
 
 export function getApiKey(): string | null {
@@ -36,20 +60,22 @@ export function setApiKey(value: string): void {
 
 		localStorage.setItem(KEY, v);
 
-		// ⭐ NEW: switch app to API key mode
+		// switch app to API key mode
 		setAuthMode('apiKey');
 	} catch {
 		// ignore
 	}
+	notifyAuthChanged();
 }
 
 export function clearApiKey(): void {
 	try {
 		localStorage.removeItem(KEY);
 
-		// ⭐ NEW: go back to session mode
+		// go back to session mode
 		setAuthMode('session');
 	} catch {
 		// ignore
 	}
+	notifyAuthChanged();
 }
