@@ -585,12 +585,16 @@ export function RunsPage() {
 										<Button variant='outline' size='sm' asChild>
 											<Link to={`/projects/${pid}/runs/${r.id}`}>View</Link>
 										</Button>
+
 										<Button
 											variant='secondary'
 											size='sm'
-											onClick={() => onDeleteRun(r)}
 											disabled={deleting === r.id}
-											className='hover:bg-destructive/20 hover:text-destructive dark:bg-secondary/80'>
+											className='hover:bg-destructive/20 hover:text-destructive dark:bg-secondary/80'
+											onClick={(e) => {
+												e.stopPropagation();
+												void onDeleteRun(r.id);
+											}}>
 											{deleting === r.id ? 'Deleting…' : 'Delete'}
 										</Button>
 									</div>

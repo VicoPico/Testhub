@@ -1,8 +1,13 @@
+// web/src/pages/RunDetailsPage.tsx
+
 import * as React from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { z } from 'zod';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import {
 	Select,
@@ -11,9 +16,19 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+} from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import {
 	ApiError,
+	batchIngestResults,
 	getProject,
 	getRun,
 	listRunResults,
@@ -25,6 +40,10 @@ import {
 import { PageError } from '@/components/common/PageState';
 import { AuthRequiredCallout } from '@/components/common/AuthRequiredCallout';
 import { useAuth } from '@/lib/useAuth';
+import {
+	getAndClearFlashBanner,
+	setFlashBanner as persistFlashBanner,
+} from '@/lib/flash';
 
 function runStatusBadgeClass(status: RunDetails['status']) {
 	switch (status) {
@@ -69,6 +88,37 @@ function formatDuration(ms?: number | null) {
 
 type StatusFilter = 'ALL' | TestStatus;
 
+type ResultDraftRow = {
+	externalId: string;
+	name: string;
+	status: TestStatus;
+	durationMs: string; // user input
+	tags: string; // comma-separated
+	suiteName: string;
+};
+
+const ResultSchema = z.object({
+	externalId: z.string().min(1, 'External ID is required.'),
+	name: z.string().min(1, 'Name is required.'),
+	status: z.enum(['PASSED', 'FAILED', 'SKIPPED', 'ERROR']),
+	durationMs: z.number().int().min(0).optional(),
+	tags: z.array(z.string()).optional(),
+	suiteName: z.string().optional(),
+});
+
+const ResultListSchema = z.array(ResultSchema).min(1);
+
+function emptyResultRow(): ResultDraftRow {
+	return {
+		externalId: '',
+		name: '',
+		status: 'PASSED',
+		durationMs: '',
+		tags: '',
+		suiteName: '',
+	};
+}
+
 export function RunDetailsPage() {
 	const { projectId, runId } = useParams();
 	const pid = projectId ?? '';
@@ -80,11 +130,38 @@ export function RunDetailsPage() {
 	const [results, setResults] = React.useState<RunResultItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [projectName, setProjectName] = React.useState<string | null>(null);
+	const [flashBanner, setFlashBannerState] = React.useState<string | null>(
+		null,
+	);
 
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
 
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
+
+	const [sheetOpen, setSheetOpen] = React.useState(false);
+	const [mode, setMode] = React.useState<'single' | 'multi'>('single');
+
+	const [singleDraft, setSingleDraft] = React.useState<ResultDraftRow>(() =>
+		emptyResultRow(),
+	);
+	const [multiDraft, setMultiDraft] = React.useState<ResultDraftRow[]>(() => [
+		emptyResultRow(),
+	]);
+
+	const [submitting, setSubmitting] = React.useState(false);
+	const [formError, setFormError] = React.useState<string | null>(null);
+	const [fieldErrors, setFieldErrors] = React.useState<
+		Partial<Record<keyof ResultDraftRow, string>>
+	>({});
+	const [rowErrors, setRowErrors] = React.useState<
+		Record<number, Partial<Record<keyof ResultDraftRow, string>>>
+	>({});
+
+	const draftKey = React.useMemo(() => {
+		if (!rid) return null;
+		return `testhub.runResultsDraft.${rid}`;
+	}, [rid]);
 
 	const isUnauthorized =
 		lastError instanceof ApiError && lastError.status === 401;
@@ -113,10 +190,9 @@ export function RunDetailsPage() {
 	}, [pid, rid]);
 
 	React.useEffect(() => {
-		// route params missing -> do nothing
 		if (!pid || !rid) return;
 
-		// if no key, don't fetch and don't show skeleton forever
+		// This page currently depends on API key auth.
 		if (!hasApiKey) {
 			setRun(null);
 			setResults([]);
@@ -128,6 +204,41 @@ export function RunDetailsPage() {
 
 		void refresh();
 	}, [pid, rid, hasApiKey, refresh]);
+
+	React.useEffect(() => {
+		const banner = getAndClearFlashBanner();
+		if (banner) setFlashBannerState(banner);
+	}, []);
+
+	React.useEffect(() => {
+		if (!draftKey) return;
+		try {
+			const raw = localStorage.getItem(draftKey);
+			if (!raw) return;
+			const parsed = JSON.parse(raw) as {
+				mode?: 'single' | 'multi';
+				singleDraft?: ResultDraftRow;
+				multiDraft?: ResultDraftRow[];
+			};
+			if (parsed.mode) setMode(parsed.mode);
+			if (parsed.singleDraft) setSingleDraft(parsed.singleDraft);
+			if (parsed.multiDraft?.length) setMultiDraft(parsed.multiDraft);
+		} catch {
+			// ignore
+		}
+	}, [draftKey]);
+
+	React.useEffect(() => {
+		if (!draftKey) return;
+		try {
+			localStorage.setItem(
+				draftKey,
+				JSON.stringify({ mode, singleDraft, multiDraft }),
+			);
+		} catch {
+			// ignore
+		}
+	}, [draftKey, mode, singleDraft, multiDraft]);
 
 	React.useEffect(() => {
 		if (!pid || !hasApiKey) {
@@ -163,6 +274,103 @@ export function RunDetailsPage() {
 		return c;
 	}, [results]);
 
+	function buildResult(row: ResultDraftRow) {
+		const duration = row.durationMs.trim();
+		const durationMs = duration ? Number(duration) : undefined;
+
+		const tags = row.tags
+			.split(',')
+			.map((t) => t.trim())
+			.filter(Boolean);
+
+		return {
+			externalId: row.externalId.trim(),
+			name: row.name.trim(),
+			status: row.status,
+			durationMs,
+			...(row.suiteName.trim() ? { suiteName: row.suiteName.trim() } : {}),
+			...(tags.length ? { tags } : {}),
+		};
+	}
+
+	async function submitResults() {
+		if (!pid || !rid) return;
+
+		setFormError(null);
+		setFieldErrors({});
+		setRowErrors({});
+		setSubmitting(true);
+
+		try {
+			const payloads =
+				mode === 'single'
+					? [buildResult(singleDraft)]
+					: multiDraft.map((row) => buildResult(row));
+
+			if (mode === 'single') {
+				const parsed = ResultSchema.safeParse(payloads[0]);
+				if (!parsed.success) {
+					const fields = parsed.error.flatten().fieldErrors;
+					setFieldErrors({
+						externalId: fields.externalId?.[0],
+						name: fields.name?.[0],
+						status: fields.status?.[0],
+						durationMs: fields.durationMs?.[0],
+						tags: fields.tags?.[0],
+						suiteName: fields.suiteName?.[0],
+					});
+					return;
+				}
+			} else {
+				const parsed = ResultListSchema.safeParse(payloads);
+				if (!parsed.success) {
+					const nextErrors: Record<
+						number,
+						Partial<Record<keyof ResultDraftRow, string>>
+					> = {};
+
+					for (const issue of parsed.error.issues) {
+						// issue.path for array schema looks like: [rowIndex, fieldName]
+						const rowIndex = issue.path[0];
+						const field = issue.path[1];
+
+						if (typeof rowIndex !== 'number') continue;
+						if (typeof field !== 'string') continue;
+
+						if (!nextErrors[rowIndex]) nextErrors[rowIndex] = {};
+						nextErrors[rowIndex][field as keyof ResultDraftRow] = issue.message;
+					}
+
+					setRowErrors(nextErrors);
+					return;
+				}
+			}
+
+			await batchIngestResults(pid, rid, { results: payloads });
+			await refresh();
+
+			persistFlashBanner('Results added successfully.');
+			setFlashBannerState('Results added successfully.');
+
+			if (draftKey) {
+				try {
+					localStorage.removeItem(draftKey);
+				} catch {
+					// ignore
+				}
+			}
+
+			setSingleDraft(emptyResultRow());
+			setMultiDraft([emptyResultRow()]);
+			setSheetOpen(false);
+		} catch (e) {
+			setFormError(e instanceof Error ? e.message : 'Failed to add results');
+		} finally {
+			setSubmitting(false);
+		}
+	}
+
+	// Route params guard (separate from auth)
 	if (!pid || !rid) {
 		return (
 			<div className='space-y-3'>
@@ -174,7 +382,7 @@ export function RunDetailsPage() {
 		);
 	}
 
-	// Auth gating (no key or 401)
+	// Auth guard
 	if (!hasApiKey || isUnauthorized) {
 		return (
 			<div className='space-y-4'>
@@ -233,6 +441,20 @@ export function RunDetailsPage() {
 
 	return (
 		<div className='space-y-6'>
+			{flashBanner ? (
+				<Card>
+					<CardContent className='flex items-center justify-between gap-3 py-3'>
+						<div className='text-sm text-foreground'>{flashBanner}</div>
+						<Button
+							variant='ghost'
+							size='sm'
+							onClick={() => setFlashBannerState(null)}>
+							Dismiss
+						</Button>
+					</CardContent>
+				</Card>
+			) : null}
+
 			<div className='flex items-start justify-between gap-4'>
 				<div className='min-w-0'>
 					<div className='flex flex-wrap items-center gap-2'>
@@ -307,7 +529,10 @@ export function RunDetailsPage() {
 						</p>
 					</div>
 
-					<div className='flex items-center gap-2'>
+					<div className='flex flex-wrap items-center gap-2'>
+						<Button size='sm' onClick={() => setSheetOpen(true)}>
+							Add Result
+						</Button>
 						<span className='text-xs text-muted-foreground'>Filter</span>
 						<Select
 							value={statusFilter}
@@ -343,7 +568,7 @@ export function RunDetailsPage() {
 							<div className='col-span-2'>Message</div>
 						</div>
 
-						<div className='divide-y'>
+						<div className='max-h-[520px] divide-y overflow-y-auto'>
 							{filteredResults.map((r) => {
 								const showMsg = r.status === 'FAILED' || r.status === 'ERROR';
 								return (
@@ -402,6 +627,329 @@ export function RunDetailsPage() {
 					</div>
 				)}
 			</div>
+
+			<Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+				<SheetContent side='right' className='w-full sm:max-w-lg'>
+					<SheetHeader>
+						<SheetTitle>Add test results</SheetTitle>
+						<SheetDescription>
+							Enter results for this run. Required fields are marked.
+						</SheetDescription>
+					</SheetHeader>
+
+					<Tabs
+						value={mode}
+						onValueChange={(v) => setMode(v as 'single' | 'multi')}>
+						<TabsList className='mt-4'>
+							<TabsTrigger value='single'>Single</TabsTrigger>
+							<TabsTrigger value='multi'>Multiple</TabsTrigger>
+						</TabsList>
+
+						<TabsContent value='single' className='mt-4 space-y-3'>
+							<div className='space-y-1'>
+								<label className='text-xs font-medium'>External ID *</label>
+								<Input
+									value={singleDraft.externalId}
+									onChange={(e) =>
+										setSingleDraft((prev) => ({
+											...prev,
+											externalId: e.target.value,
+										}))
+									}
+									placeholder='thermal/sensor-overheat'
+								/>
+								{fieldErrors.externalId ? (
+									<p className='text-xs text-destructive'>
+										{fieldErrors.externalId}
+									</p>
+								) : null}
+							</div>
+
+							<div className='space-y-1'>
+								<label className='text-xs font-medium'>Name *</label>
+								<Input
+									value={singleDraft.name}
+									onChange={(e) =>
+										setSingleDraft((prev) => ({
+											...prev,
+											name: e.target.value,
+										}))
+									}
+									placeholder='Thermal sensor overheat'
+								/>
+								{fieldErrors.name ? (
+									<p className='text-xs text-destructive'>{fieldErrors.name}</p>
+								) : null}
+							</div>
+
+							<div className='space-y-1'>
+								<label className='text-xs font-medium'>Status *</label>
+								<Select
+									value={singleDraft.status}
+									onValueChange={(v) =>
+										setSingleDraft((prev) => ({
+											...prev,
+											status: v as TestStatus,
+										}))
+									}>
+									<SelectTrigger>
+										<SelectValue placeholder='Status' />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value='PASSED'>PASSED</SelectItem>
+										<SelectItem value='FAILED'>FAILED</SelectItem>
+										<SelectItem value='SKIPPED'>SKIPPED</SelectItem>
+										<SelectItem value='ERROR'>ERROR</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className='grid gap-3 sm:grid-cols-2'>
+								<div className='space-y-1'>
+									<label className='text-xs font-medium'>Duration (ms)</label>
+									<Input
+										value={singleDraft.durationMs}
+										onChange={(e) =>
+											setSingleDraft((prev) => ({
+												...prev,
+												durationMs: e.target.value,
+											}))
+										}
+										placeholder='1200'
+									/>
+									{fieldErrors.durationMs ? (
+										<p className='text-xs text-destructive'>
+											{fieldErrors.durationMs}
+										</p>
+									) : null}
+								</div>
+								<div className='space-y-1'>
+									<label className='text-xs font-medium'>Suite</label>
+									<Input
+										value={singleDraft.suiteName}
+										onChange={(e) =>
+											setSingleDraft((prev) => ({
+												...prev,
+												suiteName: e.target.value,
+											}))
+										}
+										placeholder='Thermal'
+									/>
+								</div>
+							</div>
+
+							<div className='space-y-1'>
+								<label className='text-xs font-medium'>Tags</label>
+								<Input
+									value={singleDraft.tags}
+									onChange={(e) =>
+										setSingleDraft((prev) => ({
+											...prev,
+											tags: e.target.value,
+										}))
+									}
+									placeholder='thermal, sensor, stress'
+								/>
+								{fieldErrors.tags ? (
+									<p className='text-xs text-destructive'>{fieldErrors.tags}</p>
+								) : null}
+							</div>
+						</TabsContent>
+
+						<TabsContent value='multi' className='mt-4 space-y-3'>
+							<div className='space-y-3'>
+								{multiDraft.map((row, index) => {
+									const errors = rowErrors[index] ?? {};
+									return (
+										<div
+											key={`row-${index}`}
+											className='space-y-3 rounded-md border p-3'>
+											<div className='flex items-center justify-between'>
+												<div className='text-xs font-medium text-muted-foreground'>
+													Result {index + 1}
+												</div>
+												<Button
+													variant='ghost'
+													size='sm'
+													onClick={() =>
+														setMultiDraft((prev) =>
+															prev.filter((_, i) => i !== index),
+														)
+													}
+													disabled={multiDraft.length === 1}>
+													Remove
+												</Button>
+											</div>
+
+											<div className='space-y-1'>
+												<label className='text-xs font-medium'>
+													External ID *
+												</label>
+												<Input
+													value={row.externalId}
+													onChange={(e) =>
+														setMultiDraft((prev) =>
+															prev.map((r, i) =>
+																i === index
+																	? { ...r, externalId: e.target.value }
+																	: r,
+															),
+														)
+													}
+													placeholder='thermal/sensor-overheat'
+												/>
+												{errors.externalId ? (
+													<p className='text-xs text-destructive'>
+														{errors.externalId}
+													</p>
+												) : null}
+											</div>
+
+											<div className='space-y-1'>
+												<label className='text-xs font-medium'>Name *</label>
+												<Input
+													value={row.name}
+													onChange={(e) =>
+														setMultiDraft((prev) =>
+															prev.map((r, i) =>
+																i === index
+																	? { ...r, name: e.target.value }
+																	: r,
+															),
+														)
+													}
+													placeholder='Thermal sensor overheat'
+												/>
+												{errors.name ? (
+													<p className='text-xs text-destructive'>
+														{errors.name}
+													</p>
+												) : null}
+											</div>
+
+											<div className='space-y-1'>
+												<label className='text-xs font-medium'>Status *</label>
+												<Select
+													value={row.status}
+													onValueChange={(v) =>
+														setMultiDraft((prev) =>
+															prev.map((r, i) =>
+																i === index
+																	? { ...r, status: v as TestStatus }
+																	: r,
+															),
+														)
+													}>
+													<SelectTrigger>
+														<SelectValue placeholder='Status' />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value='PASSED'>PASSED</SelectItem>
+														<SelectItem value='FAILED'>FAILED</SelectItem>
+														<SelectItem value='SKIPPED'>SKIPPED</SelectItem>
+														<SelectItem value='ERROR'>ERROR</SelectItem>
+													</SelectContent>
+												</Select>
+												{errors.status ? (
+													<p className='text-xs text-destructive'>
+														{errors.status}
+													</p>
+												) : null}
+											</div>
+
+											<div className='grid gap-3 sm:grid-cols-2'>
+												<div className='space-y-1'>
+													<label className='text-xs font-medium'>
+														Duration (ms)
+													</label>
+													<Input
+														value={row.durationMs}
+														onChange={(e) =>
+															setMultiDraft((prev) =>
+																prev.map((r, i) =>
+																	i === index
+																		? { ...r, durationMs: e.target.value }
+																		: r,
+																),
+															)
+														}
+														placeholder='1200'
+													/>
+													{errors.durationMs ? (
+														<p className='text-xs text-destructive'>
+															{errors.durationMs}
+														</p>
+													) : null}
+												</div>
+
+												<div className='space-y-1'>
+													<label className='text-xs font-medium'>Suite</label>
+													<Input
+														value={row.suiteName}
+														onChange={(e) =>
+															setMultiDraft((prev) =>
+																prev.map((r, i) =>
+																	i === index
+																		? { ...r, suiteName: e.target.value }
+																		: r,
+																),
+															)
+														}
+														placeholder='Thermal'
+													/>
+												</div>
+											</div>
+
+											<div className='space-y-1'>
+												<label className='text-xs font-medium'>Tags</label>
+												<Input
+													value={row.tags}
+													onChange={(e) =>
+														setMultiDraft((prev) =>
+															prev.map((r, i) =>
+																i === index
+																	? { ...r, tags: e.target.value }
+																	: r,
+															),
+														)
+													}
+													placeholder='thermal, sensor, stress'
+												/>
+												{errors.tags ? (
+													<p className='text-xs text-destructive'>
+														{errors.tags}
+													</p>
+												) : null}
+											</div>
+										</div>
+									);
+								})}
+							</div>
+
+							<Button
+								variant='outline'
+								onClick={() =>
+									setMultiDraft((prev) => [...prev, emptyResultRow()])
+								}>
+								Add another result
+							</Button>
+						</TabsContent>
+					</Tabs>
+
+					{formError ? (
+						<p className='mt-3 text-xs text-destructive'>{formError}</p>
+					) : null}
+
+					<SheetFooter className='mt-6'>
+						<Button variant='outline' onClick={() => setSheetOpen(false)}>
+							Cancel
+						</Button>
+						<Button onClick={submitResults} disabled={submitting}>
+							{submitting ? 'Saving…' : 'Save results'}
+						</Button>
+					</SheetFooter>
+				</SheetContent>
+			</Sheet>
 		</div>
 	);
 }

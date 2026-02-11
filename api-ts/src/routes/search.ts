@@ -1,8 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
+import * as prismaPkg from '@prisma/client';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
+
+const { Prisma } = prismaPkg;
 
 const ProjectParams = z.object({
 	projectId: z.string().min(1), // slug or db id
