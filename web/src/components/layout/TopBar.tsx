@@ -14,6 +14,7 @@ import {
 import { SidebarNav } from './SidebarNav';
 import { usePageTitle } from '@/lib/usePageTitle';
 import { logout, searchProject, type SearchResponse } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 export function TopBar(props: {
 	projectId?: string;
@@ -24,6 +25,7 @@ export function TopBar(props: {
 }) {
 	const pageTitle = usePageTitle();
 	const navigate = useNavigate();
+	const { isApiKeyMode } = useAuth();
 	const [mobileOpen, setMobileOpen] = React.useState(false);
 	const [query, setQuery] = React.useState('');
 	const [results, setResults] = React.useState<SearchResponse | null>(null);
@@ -56,7 +58,8 @@ export function TopBar(props: {
 
 	React.useEffect(() => {
 		const trimmed = query.trim();
-		if (!trimmed || !props.projectId) {
+		const projectId = props.projectId;
+		if (!trimmed || !projectId) {
 			setResults(null);
 			setSearchError(null);
 			setSearchOpen(false);
@@ -66,7 +69,7 @@ export function TopBar(props: {
 		const handle = window.setTimeout(async () => {
 			setSearchLoading(true);
 			try {
-				const data = await searchProject(props.projectId, trimmed, 6);
+				const data = await searchProject(projectId, trimmed, 6);
 				if (queryRef.current.trim() !== trimmed) return;
 				setResults(data);
 				setSearchError(null);
@@ -121,6 +124,11 @@ export function TopBar(props: {
 								].join(' ')}>
 								{props.badgeText}
 							</Badge>
+							{isApiKeyMode ? (
+								<Badge variant='outline' className='text-xs'>
+									API key
+								</Badge>
+							) : null}
 						</div>
 						<div className='text-xs text-muted-foreground truncate'>
 							{pageTitle}

@@ -1,4 +1,4 @@
-import { getApiKey } from './auth';
+import { getApiKey, getAuthMode, type AuthMode } from './auth';
 import { setFlashBanner } from './flash';
 import type { components, operations, paths } from '@/gen/openapi';
 
@@ -50,24 +50,12 @@ async function parseErrorBody(res: Response): Promise<unknown> {
 	}
 }
 
-type AuthMode = 'session' | 'apiKey';
-
-function getAuthMode(): AuthMode {
-	if (typeof window === 'undefined') return 'session';
-	try {
-		const v = localStorage.getItem('testhub.authMode');
-		return v === 'apiKey' ? 'apiKey' : 'session';
-	} catch {
-		return 'session';
-	}
-}
-
-function shouldSendApiKey(path: string): boolean {
+function shouldSendApiKey(path: string, authMode: AuthMode): boolean {
 	// never attach API key to auth endpoints
 	if (isAuthPath(path)) return false;
 
 	// Only send API key when user explicitly chose API key mode
-	return getAuthMode() === 'apiKey';
+	return authMode === 'apiKey';
 }
 
 function pickApiKey(): string | undefined {
@@ -111,13 +99,14 @@ type RequestBody<
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 	const apiKey = pickApiKey();
+	const authMode = getAuthMode();
 
 	const headers: HeadersInit = {
 		...(init?.headers ?? {}),
 	};
 
 	// ⭐ Only send API key when explicitly in API key mode
-	if (apiKey && shouldSendApiKey(path)) {
+	if (apiKey && shouldSendApiKey(path, authMode)) {
 		(headers as Record<string, string>)['x-api-key'] = apiKey;
 	}
 

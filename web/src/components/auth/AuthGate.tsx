@@ -3,10 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getAuthMe, resendVerification } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { isSessionMode } = useAuth();
 	const fromRef = React.useRef(`${location.pathname}${location.search}`);
 	const [loading, setLoading] = React.useState(true);
 	const [email, setEmail] = React.useState<string | undefined>();
@@ -23,6 +25,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
 	const refreshAuth = React.useCallback(() => {
 		let mounted = true;
+
+		if (!isSessionMode) {
+			setAuthState('authed');
+			setVerified(true);
+			setEmail(undefined);
+			setError(null);
+			setLoading(false);
+			return () => {
+				mounted = false;
+			};
+		}
+
 		setLoading(true);
 		setError(null);
 
@@ -56,7 +70,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		return () => {
 			mounted = false;
 		};
-	}, [location.pathname, navigate]);
+	}, [isSessionMode, location.pathname, navigate]);
 
 	React.useEffect(() => {
 		const cleanup = refreshAuth();
@@ -96,7 +110,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		);
 	}
 
-	if (authState === 'unauthed') {
+	if (authState === 'unauthed' && isSessionMode) {
 		return null;
 	}
 
