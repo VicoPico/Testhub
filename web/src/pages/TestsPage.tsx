@@ -1,3 +1,5 @@
+//TestsPage.tsx
+
 import * as React from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -66,6 +68,8 @@ export function TestsPage() {
 	const [error, setError] = React.useState<string | null>(null);
 	const [lastError, setLastError] = React.useState<unknown>(null);
 
+	// NOTE: q is local state (keeps input stable while typing).
+	// We sync it to URL with a debounce, and we also sync it FROM URL when navigation changes.
 	const [q, setQ] = React.useState(() => searchParams.get('q') ?? '');
 	const [suite, setSuite] = React.useState('');
 	const [status, setStatus] = React.useState<StatusFilter>('ALL');
@@ -128,14 +132,37 @@ export function TestsPage() {
 		void refresh();
 	}, [refresh, apiKey]);
 
+	// 1) Sync q FROM the URL when the location changes (e.g. user clicks a link that sets ?q=...).
+	// Avoid clobbering while the user is actively focused in the input (prevents cursor jumps).
 	React.useEffect(() => {
-		const trimmed = q.trim();
-		const current = searchParams.get('q') ?? '';
-		if (trimmed === current) return;
-		const next = new URLSearchParams(searchParams);
-		if (trimmed) next.set('q', trimmed);
-		else next.delete('q');
-		setSearchParams(next, { replace: true });
+		const urlQ = searchParams.get('q') ?? '';
+		if (urlQ === q) return;
+
+		const activeId =
+			typeof document !== 'undefined' ? document.activeElement?.id : undefined;
+
+		// If user is typing in the q input, don't overwrite.
+		if (activeId === 'tests-q') return;
+
+		setQ(urlQ);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchParams]);
+
+	// 2) Sync q TO the URL, but debounced, so we don't navigate on every keystroke (which loses focus).
+	React.useEffect(() => {
+		const handle = window.setTimeout(() => {
+			const trimmed = q.trim();
+			const current = searchParams.get('q') ?? '';
+			if (trimmed === current) return;
+
+			const next = new URLSearchParams(searchParams);
+			if (trimmed) next.set('q', trimmed);
+			else next.delete('q');
+
+			setSearchParams(next, { replace: true });
+		}, 300);
+
+		return () => window.clearTimeout(handle);
 	}, [q, searchParams, setSearchParams]);
 
 	React.useEffect(() => {
@@ -165,7 +192,7 @@ export function TestsPage() {
 		let passed = 0,
 			failed = 0,
 			skipped = 0,
-			error = 0;
+			errorCount = 0;
 		let durationTotal = 0;
 		let durationCount = 0;
 
@@ -173,7 +200,7 @@ export function TestsPage() {
 			if (h.status === 'PASSED') passed++;
 			else if (h.status === 'FAILED') failed++;
 			else if (h.status === 'SKIPPED') skipped++;
-			else error++;
+			else errorCount++;
 
 			if (typeof h.durationMs === 'number') {
 				durationTotal += h.durationMs;
@@ -181,13 +208,21 @@ export function TestsPage() {
 			}
 		}
 
-		const total = passed + failed + skipped + error;
+		const total = passed + failed + skipped + errorCount;
 		const passRate = total ? Math.round((passed / total) * 100) : 0;
 		const avgDurationMs = durationCount
 			? Math.round(durationTotal / durationCount)
 			: null;
 
-		return { passed, failed, skipped, error, total, passRate, avgDurationMs };
+		return {
+			passed,
+			failed,
+			skipped,
+			error: errorCount,
+			total,
+			passRate,
+			avgDurationMs,
+		};
 	}, [history]);
 
 	const passRateChartConfig: ChartConfig = {

@@ -7,6 +7,7 @@ import { getAuthMe, resendVerification } from '@/lib/api';
 export function AuthGate({ children }: { children: React.ReactNode }) {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const fromRef = React.useRef(`${location.pathname}${location.search}`);
 	const [loading, setLoading] = React.useState(true);
 	const [email, setEmail] = React.useState<string | undefined>();
 	const [verified, setVerified] = React.useState(true);
@@ -15,6 +16,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 	const [authState, setAuthState] = React.useState<
 		'loading' | 'authed' | 'unauthed'
 	>('loading');
+
+	React.useEffect(() => {
+		fromRef.current = `${location.pathname}${location.search}`;
+	}, [location.pathname, location.search]);
 
 	const refreshAuth = React.useCallback(() => {
 		let mounted = true;
@@ -30,7 +35,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 					setEmail(undefined);
 					navigate('/login', {
 						replace: true,
-						state: { from: location.pathname + location.search },
+						state: { from: fromRef.current },
 					});
 					return;
 				}
@@ -51,7 +56,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 		return () => {
 			mounted = false;
 		};
-	}, [location.pathname, location.search, navigate]);
+	}, [location.pathname, navigate]);
 
 	React.useEffect(() => {
 		const cleanup = refreshAuth();
