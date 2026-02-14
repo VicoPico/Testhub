@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import {
@@ -353,7 +354,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 			throw app.httpErrors.badRequest('Invalid or expired token');
 		}
 
-		await app.prisma.$transaction(async (tx) => {
+		await app.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 			await tx.user.update({
 				where: { id: token.userId },
 				data: { emailVerifiedAt: now },
@@ -465,7 +466,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
 		const passwordHash = await hashPassword(body.newPassword);
 
-		await app.prisma.$transaction(async (tx) => {
+		await app.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
 			await tx.user.update({
 				where: { id: token.userId },
 				data: { passwordHash },
@@ -553,84 +554,86 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 			now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
 		);
 
-		const result = await app.prisma.$transaction(async (tx) => {
-			const existingByGithub = await tx.user.findUnique({
-				where: { githubId },
-			});
-			let user = existingByGithub;
-
-			if (!user) {
-				const existingByEmail = await tx.user.findUnique({
-					where: { email },
+		const result = await app.prisma.$transaction(
+			async (tx: Prisma.TransactionClient) => {
+				const existingByGithub = await tx.user.findUnique({
+					where: { githubId },
 				});
-				if (existingByEmail) {
-					user = await tx.user.update({
-						where: { id: existingByEmail.id },
-						data: {
-							githubId,
-							fullName: ghUser.name ?? existingByEmail.fullName,
-							nickname: ghUser.login ?? existingByEmail.nickname,
-						},
+				let user = existingByGithub;
+
+				if (!user) {
+					const existingByEmail = await tx.user.findUnique({
+						where: { email },
 					});
-				} else {
-					user = await tx.user.create({
+					if (existingByEmail) {
+						user = await tx.user.update({
+							where: { id: existingByEmail.id },
+							data: {
+								githubId,
+								fullName: ghUser.name ?? existingByEmail.fullName,
+								nickname: ghUser.login ?? existingByEmail.nickname,
+							},
+						});
+					} else {
+						user = await tx.user.create({
+							data: {
+								email,
+								githubId,
+								fullName: ghUser.name ?? undefined,
+								nickname: ghUser.login ?? undefined,
+							},
+						});
+					}
+				}
+
+				const membership = await tx.membership.findFirst({
+					where: { userId: user.id },
+					select: { orgId: true },
+				});
+
+				let orgId = membership?.orgId;
+				if (!orgId) {
+					const baseSlug = toSlug(ghUser.login || email.split('@')[0] || 'org');
+					let slug = baseSlug;
+					let suffix = 2;
+
+					while (await tx.organization.findUnique({ where: { slug } })) {
+						slug = `${baseSlug}-${suffix}`;
+						suffix += 1;
+					}
+
+					const org = await tx.organization.create({
 						data: {
-							email,
-							githubId,
-							fullName: ghUser.name ?? undefined,
-							nickname: ghUser.login ?? undefined,
+							name: `${ghUser.login || 'User'} Organization`,
+							slug,
+						},
+						select: { id: true },
+					});
+					orgId = org.id;
+
+					await tx.membership.create({
+						data: {
+							orgId,
+							userId: user.id,
+							role: 'ADMIN',
 						},
 					});
 				}
-			}
 
-			const membership = await tx.membership.findFirst({
-				where: { userId: user.id },
-				select: { orgId: true },
-			});
-
-			let orgId = membership?.orgId;
-			if (!orgId) {
-				const baseSlug = toSlug(ghUser.login || email.split('@')[0] || 'org');
-				let slug = baseSlug;
-				let suffix = 2;
-
-				while (await tx.organization.findUnique({ where: { slug } })) {
-					slug = `${baseSlug}-${suffix}`;
-					suffix += 1;
-				}
-
-				const org = await tx.organization.create({
+				const sessionId = randomBytes(32).toString('hex');
+				await tx.session.create({
 					data: {
-						name: `${ghUser.login || 'User'} Organization`,
-						slug,
-					},
-					select: { id: true },
-				});
-				orgId = org.id;
-
-				await tx.membership.create({
-					data: {
-						orgId,
+						id: sessionId,
 						userId: user.id,
-						role: 'ADMIN',
+						orgId,
+						expiresAt,
+						lastSeenAt: now,
 					},
 				});
-			}
 
-			const sessionId = randomBytes(32).toString('hex');
-			await tx.session.create({
-				data: {
-					id: sessionId,
-					userId: user.id,
-					orgId,
-					expiresAt,
-					lastSeenAt: now,
-				},
-			});
-
-			return { sessionId };
-		});
+				return { sessionId };
+			},
+		);
 
 		reply.setCookie(app.config.AUTH_COOKIE_NAME, result.sessionId, {
 			path: '/',

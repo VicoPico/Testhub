@@ -175,72 +175,74 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
 
 		await requireRun(app, project.id, runId);
 
-		const created = await app.prisma.$transaction(async (tx) => {
-			let passed = 0,
-				failed = 0,
-				skipped = 0,
-				error = 0;
+		const created = await app.prisma.$transaction(
+			async (tx: Prisma.TransactionClient) => {
+				let passed = 0,
+					failed = 0,
+					skipped = 0,
+					error = 0;
 
-			for (const r of body.results) {
-				const tc = await tx.testCase.upsert({
-					where: {
-						projectId_externalId: {
+				for (const r of body.results) {
+					const tc = await tx.testCase.upsert({
+						where: {
+							projectId_externalId: {
+								projectId: project.id,
+								externalId: r.externalId,
+							},
+						},
+						update: {
+							name: r.name,
+							filePath: r.filePath,
+							suiteName: r.suiteName,
+							...(r.tags ? { tags: r.tags } : {}),
+						},
+						create: {
 							projectId: project.id,
 							externalId: r.externalId,
+							name: r.name,
+							filePath: r.filePath,
+							suiteName: r.suiteName,
+							tags: r.tags ?? [],
 						},
-					},
-					update: {
-						name: r.name,
-						filePath: r.filePath,
-						suiteName: r.suiteName,
-						...(r.tags ? { tags: r.tags } : {}),
-					},
-					create: {
-						projectId: project.id,
-						externalId: r.externalId,
-						name: r.name,
-						filePath: r.filePath,
-						suiteName: r.suiteName,
-						tags: r.tags ?? [],
-					},
-					select: { id: true },
-				});
+						select: { id: true },
+					});
 
-				await tx.testResult.create({
+					await tx.testResult.create({
+						data: {
+							runId,
+							testCaseId: tc.id,
+							status: r.status,
+							durationMs: r.durationMs,
+							message: r.message,
+							stacktrace: r.stacktrace,
+							stdout: r.stdout,
+							stderr: r.stderr,
+							meta: (r.meta ?? undefined) as Prisma.InputJsonValue | undefined,
+						},
+					});
+
+					if (r.status === 'PASSED') passed++;
+					else if (r.status === 'FAILED') failed++;
+					else if (r.status === 'SKIPPED') skipped++;
+					else error++;
+				}
+
+				const total = passed + failed + skipped + error;
+
+				await tx.testRun.update({
+					where: { id: runId },
 					data: {
-						runId,
-						testCaseId: tc.id,
-						status: r.status,
-						durationMs: r.durationMs,
-						message: r.message,
-						stacktrace: r.stacktrace,
-						stdout: r.stdout,
-						stderr: r.stderr,
-						meta: (r.meta ?? undefined) as Prisma.InputJsonValue | undefined,
+						totalCount: total,
+						passedCount: passed,
+						failedCount: failed,
+						skippedCount: skipped,
+						errorCount: error,
 					},
 				});
 
-				if (r.status === 'PASSED') passed++;
-				else if (r.status === 'FAILED') failed++;
-				else if (r.status === 'SKIPPED') skipped++;
-				else error++;
-			}
-
-			const total = passed + failed + skipped + error;
-
-			await tx.testRun.update({
-				where: { id: runId },
-				data: {
-					totalCount: total,
-					passedCount: passed,
-					failedCount: failed,
-					skippedCount: skipped,
-					errorCount: error,
-				},
-			});
-
-			return { inserted: body.results.length };
-		});
+				return { inserted: body.results.length };
+			},
+		);
 
 		return created;
 	});

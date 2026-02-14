@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { requireAuth, getAuth } from '../lib/requireAuth';
 import { requireProjectForOrg } from '../lib/requireProjectForOrg';
@@ -174,61 +175,63 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 		}
 
 		try {
-			const updated = await app.prisma.$transaction(async (tx) => {
-				const aliasDelegate = (tx as typeof app.prisma).projectSlugAlias as
-					| typeof app.prisma.projectSlugAlias
-					| undefined;
+			const updated = await app.prisma.$transaction(
+				async (tx: Prisma.TransactionClient) => {
+					const aliasDelegate = (tx as typeof app.prisma).projectSlugAlias as
+						| typeof app.prisma.projectSlugAlias
+						| undefined;
 
-				if (wantsSlugChange && nextSlugRaw) {
-					const existingProject = await tx.project.findFirst({
-						where: { slug: nextSlugRaw, orgId },
-						select: { id: true },
-					});
-					if (existingProject && existingProject.id !== project.id) {
-						throw app.httpErrors.badRequest(
-							'Project slug is already in use in this organization',
-						);
-					}
-
-					if (aliasDelegate) {
-						const existingAlias = await aliasDelegate.findUnique({
-							where: { slug: nextSlugRaw },
-							select: { projectId: true },
+					if (wantsSlugChange && nextSlugRaw) {
+						const existingProject = await tx.project.findFirst({
+							where: { slug: nextSlugRaw, orgId },
+							select: { id: true },
 						});
-						if (existingAlias && existingAlias.projectId !== project.id) {
+						if (existingProject && existingProject.id !== project.id) {
 							throw app.httpErrors.badRequest(
 								'Project slug is already in use in this organization',
 							);
 						}
 
-						if (existingAlias && existingAlias.projectId === project.id) {
-							await aliasDelegate.delete({
+						if (aliasDelegate) {
+							const existingAlias = await aliasDelegate.findUnique({
 								where: { slug: nextSlugRaw },
+								select: { projectId: true },
+							});
+							if (existingAlias && existingAlias.projectId !== project.id) {
+								throw app.httpErrors.badRequest(
+									'Project slug is already in use in this organization',
+								);
+							}
+
+							if (existingAlias && existingAlias.projectId === project.id) {
+								await aliasDelegate.delete({
+									where: { slug: nextSlugRaw },
+								});
+							}
+
+							await aliasDelegate.createMany({
+								data: [{ projectId: project.id, slug: project.slug }],
+								skipDuplicates: true,
 							});
 						}
-
-						await aliasDelegate.createMany({
-							data: [{ projectId: project.id, slug: project.slug }],
-							skipDuplicates: true,
-						});
 					}
-				}
 
-				return tx.project.update({
-					where: { id: project.id },
-					data: {
-						...(nextName ? { name: nextName } : {}),
-						...(wantsSlugChange && nextSlugRaw ? { slug: nextSlugRaw } : {}),
-					},
-					select: {
-						id: true,
-						name: true,
-						slug: true,
-						createdAt: true,
-						updatedAt: true,
-					},
-				});
-			});
+					return tx.project.update({
+						where: { id: project.id },
+						data: {
+							...(nextName ? { name: nextName } : {}),
+							...(wantsSlugChange && nextSlugRaw ? { slug: nextSlugRaw } : {}),
+						},
+						select: {
+							id: true,
+							name: true,
+							slug: true,
+							createdAt: true,
+							updatedAt: true,
+						},
+					});
+				},
+			);
 
 			return updated;
 		} catch (err) {
