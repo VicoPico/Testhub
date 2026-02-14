@@ -2,6 +2,9 @@
 	"name": "testhub",
 	"private": true,
 	"packageManager": "pnpm@10.26.0",
+	"devDependencies": {
+		"@types/node": "^22.13.4"
+	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"argon2"
