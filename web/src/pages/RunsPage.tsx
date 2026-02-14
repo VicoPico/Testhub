@@ -593,7 +593,7 @@ export function RunsPage() {
 											className='hover:bg-destructive/20 hover:text-destructive dark:bg-secondary/80'
 											onClick={(e) => {
 												e.stopPropagation();
-												void onDeleteRun(r.id);
+												void onDeleteRun(r);
 											}}>
 											{deleting === r.id ? 'Deleting…' : 'Delete'}
 										</Button>

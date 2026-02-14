@@ -140,7 +140,7 @@ export const authPlugin: FastifyPluginAsync = fp(async (app) => {
 		// best-effort lastUsedAt
 		app.prisma.apiKey
 			.update({ where: { id: apiKey.id }, data: { lastUsedAt: now } })
-			.catch((err) => {
+			.catch((err: unknown) => {
 				req.log.warn(
 					{ err, apiKeyId: apiKey.id },
 					'Failed to update ApiKey.lastUsedAt',
