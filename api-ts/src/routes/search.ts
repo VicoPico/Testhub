@@ -106,7 +106,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
 		});
 
 		return {
-			tests: tests.map((t) => ({
+			tests: tests.map((t: (typeof tests)[number]) => ({
 				id: t.id,
 				externalId: t.externalId,
 				name: t.name,
@@ -114,7 +114,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
 				lastStatus: t.lastStatus,
 				lastSeenAt: t.lastSeenAt ? t.lastSeenAt.toISOString() : null,
 			})),
-			runs: runs.map((r) => ({
+			runs: runs.map((r: (typeof runs)[number]) => ({
 				id: r.id,
 				createdAt: r.createdAt.toISOString(),
 				status: r.status,

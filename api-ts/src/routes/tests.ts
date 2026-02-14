@@ -94,7 +94,7 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 		`;
 
 		return {
-			items: items.map((r) => ({
+			items: items.map((r: (typeof items)[number]) => ({
 				id: r.id,
 				externalId: r.externalId,
 				name: r.name,
@@ -148,7 +148,7 @@ export const testRoutes: FastifyPluginAsync = async (app) => {
 		});
 
 		return {
-			items: results.map((r) => ({
+			items: results.map((r: (typeof results)[number]) => ({
 				id: r.id,
 				status: r.status,
 				durationMs: r.durationMs ?? null,

@@ -39,7 +39,7 @@ sends `x-api-key` when enabled. The key is stored locally in the browser.
 - `src/lib/api.ts` — API client
 - `src/lib/auth.ts` — auth storage helpers
 
-# React + TypeScript + Vite
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

@@ -8,7 +8,7 @@ Testhub is designed for teams and individuals who want full control over how aut
 
 ### Runs & Results
 
-**Inspect execution-level outcomes and timing at a glance.**
+Inspect execution-level outcomes and timing at a glance.
 
 ![Run results overview](docs/screenshots/runs-results.png)
 
@@ -30,25 +30,25 @@ Analyze test performance over time with insights such as slowest tests, failure 
 
 ## Features
 
-**Core**
+### Core
 
 - Full CRUD operations for projects and test runs
 - Batch ingestion of test results with automatic test case management
 - Organization-scoped API key authentication
 
-**Exploration**
+### Exploration
 
 - Tests explorer with history and status breakdowns
 - Tags on test cases with tag-based filtering
 - Project-scoped search across runs and tests
 
-**Analytics**
+### Analytics endpoints
 
 - Analytics dashboards with tables and charts (time series, slowest tests, most failing tests)
 - Chart view toggles (tabular vs charts, bars vs stacked area)
 - Recharts-based data visualizations
 
-**Platform**
+### Platform
 
 - PostgreSQL-backed persistent storage with optimized queries
 - Type-safe API contracts with OpenAPI specification
@@ -56,7 +56,7 @@ Analyze test performance over time with insights such as slowest tests, failure 
 
 ## Stack
 
-**Backend:**
+### Backend
 
 - Node.js with Fastify
 - TypeScript
@@ -64,7 +64,7 @@ Analyze test performance over time with insights such as slowest tests, failure 
 - PostgreSQL 16
 - OpenAPI 3.0 contract
 
-**Frontend:**
+### Frontend
 
 - React 19
 - Vite
@@ -94,13 +94,13 @@ git clone <repository-url>
 cd Testhub
 ```
 
-2. Start the PostgreSQL database:
+1. Start the PostgreSQL database:
 
 ```bash
 docker-compose up -d
 ```
 
-3. Set up the backend:
+1. Set up the backend:
 
 ```bash
 cd api-ts
@@ -128,13 +128,13 @@ If your local schema is out of sync and you are OK wiping local data (dev only):
 pnpm -C api-ts prisma migrate reset
 ```
 
-4. Start the backend server:
+1. Start the backend server:
 
 ```bash
 pnpm dev  # Runs on http://localhost:8080
 ```
 
-5. Set up the frontend (in a new terminal):
+1. Set up the frontend (in a new terminal):
 
 ```bash
 cd web
@@ -142,7 +142,7 @@ pnpm install
 pnpm dev  # Runs on http://localhost:5173
 ```
 
-6. Access the application at `http://localhost:5173`
+1. Access the application at `http://localhost:5173`
 
 ### Testing the API
 
@@ -176,7 +176,7 @@ pnpm -C api-ts exec tsx scripts/auth-smoke-test.ts
 
 Expected output (example):
 
-```
+```txt
 [PASS] register
 [PASS] verify email
 [PASS] login
@@ -381,15 +381,15 @@ Settings (Session or API key).
    pnpm seed
    ```
 
-2. Copy the generated API key from the output
+1. Copy the generated API key from the output
 
-3. Use the API key in requests:
+1. Use the API key in requests:
 
    ```bash
    curl -H "x-api-key: YOUR_API_KEY" http://localhost:8080/projects
    ```
 
-4. In the web UI, configure the API key in Settings (and select API key mode) to
+1. In the web UI, configure the API key in Settings (and select API key mode) to
    persist it locally
 
 This model keeps authorization logic explicit and auditable without introducing unnecessary complexity.
@@ -577,10 +577,10 @@ Analytics and trends use chart tokens:
 This project follows these principles:
 
 1. **Explicit over implicit** - No magic, clear data flow
-2. **SQL-first thinking** - Queries are reviewable and optimized
-3. **Type safety** - TypeScript everywhere, generated from contracts
-4. **Component reuse** - Build with existing primitives first
-5. **Performance by default** - Pagination and lazy loading everywhere
+1. **SQL-first thinking** - Queries are reviewable and optimized
+1. **Type safety** - TypeScript everywhere, generated from contracts
+1. **Component reuse** - Build with existing primitives first
+1. **Performance by default** - Pagination and lazy loading everywhere
 
 ### Development Commands
 

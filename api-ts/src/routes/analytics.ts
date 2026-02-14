@@ -72,7 +72,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 
 		return {
 			days: query.days,
-			items: rows.map((r) => ({
+			items: rows.map((r: Row) => ({
 				day: r.day,
 				passedCount: r.passedcount,
 				failedCount: r.failedcount,
@@ -133,7 +133,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 
 		return {
 			days: query.days,
-			items: rows.map((r) => ({
+			items: rows.map((r: Row) => ({
 				testCaseId: r.testcaseid,
 				name: r.name,
 				externalId: r.externalid,
@@ -186,7 +186,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 
 		return {
 			days: query.days,
-			items: rows.map((r) => ({
+			items: rows.map((r: Row) => ({
 				testCaseId: r.testcaseid,
 				name: r.name,
 				externalId: r.externalid,
